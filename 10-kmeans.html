@@ -1,0 +1,1378 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K-means</title>
+<meta name="description" content="Tóm tắt slide và giải thích code: K-means">
+<style>:root{
+  --bg:#f8f7f3; --surface:#ffffff; --surface2:#f1efe9; --ink:#1d1c1a; --muted:#6a665e; --border:#e3dfd6;
+  --accent:#0b7a6c; --accent-soft:#e2f2ee; --term:#8a4b08; --term-soft:#fbefdc;
+  --a:#d6453d; --b:#2b6cc4; --c:#2f9e44; --q:#e69500; --line:#9a958b;
+  --code-bg:#f3f1ea; --c-kw:#a2348f; --c-str:#3b7d2b; --c-num:#9a5b00; --c-com:#8f8b82; --c-bi:#0f6f9a; --c-call:#3456c9; --c-def:#3456c9; --c-arg:#8a4b08;
+  --shadow:0 10px 30px rgba(30,25,15,.12), 0 2px 6px rgba(30,25,15,.08);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#131418; --surface:#1b1c22; --surface2:#22242b; --ink:#e9e6df; --muted:#a29e95; --border:#2f313a;
+    --accent:#3cc4ae; --accent-soft:#163a35; --term:#f0b25e; --term-soft:#3a2b17;
+    --a:#ff7b72; --b:#5aa9ff; --c:#69db7c; --q:#ffc53d; --line:#7b7870;
+    --code-bg:#18191e; --c-kw:#d38ad9; --c-str:#98c379; --c-num:#e0a46b; --c-com:#7f848e; --c-bi:#56b6c2; --c-call:#7aa7ff; --c-def:#7aa7ff; --c-arg:#f0b25e;
+    --shadow:0 10px 30px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.4);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#131418; --surface:#1b1c22; --surface2:#22242b; --ink:#e9e6df; --muted:#a29e95; --border:#2f313a;
+  --accent:#3cc4ae; --accent-soft:#163a35; --term:#f0b25e; --term-soft:#3a2b17;
+  --a:#ff7b72; --b:#5aa9ff; --c:#69db7c; --q:#ffc53d; --line:#7b7870;
+  --code-bg:#18191e; --c-kw:#d38ad9; --c-str:#98c379; --c-num:#e0a46b; --c-com:#7f848e; --c-bi:#56b6c2; --c-call:#7aa7ff; --c-def:#7aa7ff; --c-arg:#f0b25e;
+  --shadow:0 10px 30px rgba(0,0,0,.5), 0 2px 6px rgba(0,0,0,.4);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:16px}
+body{margin:0; background:var(--bg); color:var(--ink);
+  font:17px/1.7 "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-text-size-adjust:100%}
+a{color:var(--accent)}
+code,pre{font-family:"Cascadia Code", Consolas, "JetBrains Mono", "SF Mono", Menlo, "Courier New", "DejaVu Sans Mono", monospace}
+math{font-size:1.07em}
+math[display="block"]{margin:.8em 0; overflow-x:auto; overflow-y:hidden}
+
+/* ---------- hero ---------- */
+.hero{position:relative; border-bottom:1px solid var(--border); background:var(--surface)}
+.hero-in{max-width:1180px; margin:0 auto; padding:40px 20px 28px}
+.eyebrow{font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-weight:600}
+.title{font-size:clamp(28px,4.4vw,42px); line-height:1.15; margin:.2em 0 .35em; letter-spacing:-.01em}
+.lede{margin:0 0 14px; color:var(--muted); max-width:760px}
+.demo-gl{font-family:Consolas,monospace; border-bottom:2px dotted var(--accent); color:var(--accent)}
+.demo-term{border-bottom:2px dotted var(--term); color:var(--term)}
+.sources{max-width:760px; font-size:15px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:8px 14px}
+.sources summary{cursor:pointer; font-weight:600}
+.sources ul{margin:.4em 0; padding-left:1.2em}
+.theme{position:absolute; top:16px; right:16px; width:38px; height:38px; border-radius:50%; border:1px solid var(--border);
+  background:var(--surface2); color:var(--ink); cursor:pointer; display:grid; place-items:center; padding:0}
+.theme svg{width:18px; height:18px}
+
+/* ---------- layout ---------- */
+.layout{max-width:1180px; margin:0 auto; padding:0 20px; display:grid; grid-template-columns:260px minmax(0,1fr); gap:44px}
+.side{position:sticky; top:0; align-self:start; max-height:100vh; overflow:auto; padding:28px 0 40px; font-size:14.5px}
+.toc-wrap summary{font-weight:700; cursor:pointer; margin-bottom:6px; list-style:none}
+.toc-wrap summary::-webkit-details-marker{display:none}
+.toc,.toc ol{list-style:none; margin:0; padding:0}
+.toc ol{padding-left:2px; margin:2px 0 12px}
+.toc a{display:block; text-decoration:none; color:var(--muted); padding:3px 10px; border-left:2px solid transparent; line-height:1.4}
+.toc a:hover{color:var(--ink)}
+.toc a.on{color:var(--accent); border-left-color:var(--accent); background:var(--accent-soft); border-radius:0 6px 6px 0}
+.toc-part>a{color:var(--ink); font-weight:700; font-size:13px; letter-spacing:.05em; text-transform:uppercase; padding-top:10px}
+.content{min-width:0; padding:28px 0 120px; max-width:800px}
+
+/* ---------- typography ---------- */
+h1.part{font-size:15px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:56px 0 4px;
+  padding-top:18px; border-top:2px solid var(--accent)}
+.content>h1.part:first-child{margin-top:8px}
+h2{font-size:27px; line-height:1.25; margin:44px 0 10px; letter-spacing:-.005em}
+h3{font-size:20px; margin:30px 0 8px}
+h4{font-size:17px; margin:22px 0 6px}
+p{margin:.65em 0}
+ul,ol{padding-left:1.4em}
+li{margin:.2em 0}
+hr{border:0; border-top:1px dashed var(--border); margin:36px 0}
+strong{font-weight:650}
+:not(pre)>code{background:var(--code-bg); border:1px solid var(--border); padding:.05em .35em; border-radius:5px; font-size:.86em; white-space:break-spaces}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto; margin:14px 0; border:1px solid var(--border); border-radius:10px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:15px; line-height:1.55}
+th,td{padding:8px 12px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:var(--surface2); font-weight:650; white-space:nowrap}
+tr:last-child td{border-bottom:0}
+
+/* ---------- callouts ---------- */
+.callout{margin:16px 0; padding:10px 16px; border-left:4px solid var(--line); background:var(--surface); border-radius:0 10px 10px 0; border-top:1px solid var(--border); border-right:1px solid var(--border); border-bottom:1px solid var(--border)}
+.callout.tip{border-left-color:var(--accent)}
+.callout.warn{border-left-color:var(--q)}
+.callout.note{border-left-color:var(--b)}
+.callout p:first-child{margin-top:.2em} .callout p:last-child{margin-bottom:.2em}
+
+/* ---------- code ---------- */
+.code{margin:14px 0 18px; border:1px solid var(--border); border-radius:10px; background:var(--code-bg); overflow:hidden}
+.code-bar{display:flex; justify-content:space-between; align-items:center; padding:4px 8px 4px 14px; font-size:12px; color:var(--muted); border-bottom:1px solid var(--border); text-transform:uppercase; letter-spacing:.06em}
+.copy{font:inherit; text-transform:none; letter-spacing:0; font-size:12.5px; border:1px solid var(--border); background:var(--surface); color:var(--ink); border-radius:6px; padding:2px 10px; cursor:pointer}
+pre{margin:0; padding:14px 16px; overflow-x:auto; font-size:14px; line-height:1.6; tab-size:4}
+.c-kw{color:var(--c-kw)} .c-str{color:var(--c-str)} .c-num{color:var(--c-num)} .c-com{color:var(--c-com); font-style:italic}
+.c-bi{color:var(--c-bi)} .c-call{color:var(--c-call)} .c-def{color:var(--c-def); font-weight:600} .c-arg{color:var(--c-arg)}
+
+/* ---------- glossary triggers ---------- */
+.gl{cursor:pointer; border-bottom:1.5px dotted var(--accent); border-radius:3px}
+.gl:hover,.gl:focus-visible{background:var(--accent-soft); outline:none}
+code.gl{border-bottom:1.5px dotted var(--accent)}
+.term{cursor:pointer; border-bottom:1.5px dotted var(--term); color:inherit}
+.term:hover,.term:focus-visible{background:var(--term-soft); outline:none; border-radius:3px}
+
+#pop{position:absolute; z-index:50; width:min(480px, calc(100vw - 24px)); max-height:min(72vh, 640px); overflow:auto; background:var(--surface); color:var(--ink); border:1px solid var(--border);
+  border-radius:12px; box-shadow:var(--shadow); padding:14px 18px 14px; font-size:15px; line-height:1.55; overscroll-behavior:contain}
+#pop[hidden]{display:none}
+.pop-x{position:sticky; float:right; top:0; margin:-6px -8px 0 8px; border:0; background:var(--surface); color:var(--muted); font-size:24px; line-height:1; cursor:pointer; padding:2px 6px; border-radius:6px; z-index:1}
+.pop-x:hover{color:var(--ink); background:var(--surface2)}
+.pop-kind{font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:4px}
+.pop-kind.t{color:var(--term)}
+.pop-name{font-weight:650; font-size:16px; margin-bottom:6px}
+.pop-name code{font-size:.9em; white-space:normal}
+#pop .ps{margin-top:10px}
+#pop h5{margin:0 0 3px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700}
+#pop p{margin:0}
+#pop dl{margin:0; display:grid; grid-template-columns:auto 1fr; gap:4px 10px}
+#pop dt{margin:0} #pop dd{margin:0}
+#pop dt code{white-space:nowrap}
+#pop .ps.warn{background:var(--term-soft); border-radius:8px; padding:6px 10px}
+#pop .ps.warn h5{color:var(--term)}
+#pop pre.mini{background:var(--code-bg); border:1px solid var(--border); border-radius:8px; padding:8px 10px; font-size:13px; line-height:1.5; margin:2px 0 0}
+#pop .exout{margin-top:4px; border:1px dashed var(--border); border-radius:8px; padding:4px 10px 6px}
+#pop .exout span{font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em}
+#pop .exout pre{margin:0; padding:0; font-size:13px; line-height:1.45; white-space:pre; overflow-x:auto}
+.pop-src{margin-top:12px; font-size:13px; color:var(--muted); border-top:1px solid var(--border); padding-top:8px}
+.pop-src blockquote{margin:4px 0 0; padding:4px 10px; border-left:3px solid var(--accent); font-style:italic; color:var(--ink); background:var(--surface2); border-radius:0 6px 6px 0}
+.rel{display:flex; flex-wrap:wrap; gap:6px}
+.chip{display:inline-block; font-size:13px; padding:1px 10px; border-radius:999px; border:1px solid var(--border); background:var(--surface2)}
+.chip.term-link{cursor:pointer; border-color:var(--term); color:var(--term)}
+.chip.term-link:hover{background:var(--term-soft)}
+@media (max-width:640px){
+  #pop{position:fixed; left:0 !important; right:0; bottom:0; top:auto !important; width:100%; border-radius:16px 16px 0 0; padding:16px 18px 22px; max-height:70vh}
+}
+
+/* ---------- simulations ---------- */
+.sim{margin:18px 0 26px; border:1px solid var(--border); border-radius:12px; background:var(--surface); padding:12px; }
+.sim canvas{display:block; width:100%; border-radius:8px; background:var(--surface2); touch-action:none; cursor:crosshair}
+.sim .ctl{display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; margin:10px 2px 4px; font-size:14.5px}
+.sim .ctl label{display:inline-flex; gap:6px; align-items:center; cursor:pointer}
+.sim input[type=range]{width:150px; accent-color:var(--accent)}
+.sim input[type=checkbox],.sim input[type=radio]{accent-color:var(--accent)}
+.sim button{font:inherit; font-size:14px; border:1px solid var(--border); background:var(--surface2); color:var(--ink); border-radius:8px; padding:3px 12px; cursor:pointer}
+.sim .out{font-size:14.5px; margin:8px 2px 0; display:grid; gap:6px}
+.sim .badge{display:inline-block; padding:1px 10px; border-radius:999px; font-weight:650; color:#fff}
+.sim .num{font-family:Consolas, monospace; font-variant-numeric:tabular-nums}
+.sim .bars{display:grid; grid-template-columns:auto 1fr auto; gap:4px 10px; align-items:center; max-width:420px}
+.sim .bar{height:12px; border-radius:6px}
+.sim .hint{color:var(--muted); font-size:13.5px}
+.sim .grid4{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px}
+.sim .cell{border:1px solid var(--border); border-radius:8px; padding:6px 10px; background:var(--surface2)}
+.sim .cell b{display:block; font-size:12.5px; letter-spacing:.04em; text-transform:uppercase}
+.sim .key{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:middle}
+
+@media (max-width:980px){
+  .layout{grid-template-columns:minmax(0,1fr); gap:0; padding:0 16px}
+  .side{position:static; max-height:none; padding:16px 0 0}
+  .toc-wrap{border:1px solid var(--border); border-radius:10px; padding:8px 12px; background:var(--surface)}
+  .toc-wrap summary{margin:0} .toc-wrap[open] summary{margin-bottom:6px}
+  .content{padding-top:8px}
+  .hero-in{padding:28px 16px 20px}
+}
+@media (max-width:640px){
+  body{font-size:16px}
+  h2{font-size:23px}
+  pre{font-size:13px}
+  table{font-size:14px}
+}
+
+/* ---------- home button ---------- */
+.home{display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600; text-decoration:none; color:var(--ink);
+  border:1px solid var(--border); background:var(--surface2); border-radius:999px; padding:4px 14px 4px 10px; margin-bottom:14px}
+.home:hover{border-color:var(--accent); color:var(--accent)}
+.home svg{width:16px; height:16px}
+
+/* ---------- algorithm flow player ---------- */
+.flow{margin:16px 0 28px; border:1px solid var(--border); border-radius:14px; background:var(--surface); padding:14px 14px 12px}
+.flow-steps{list-style:none; margin:0 0 10px; padding:0; display:flex; flex-wrap:wrap; gap:6px}
+.flow-steps button{font:inherit; font-size:13.5px; display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); border-radius:999px; padding:3px 12px 3px 4px; cursor:pointer}
+.flow-steps .n{display:inline-grid; place-items:center; min-width:24px; height:24px; padding:0 4px; border-radius:999px; background:var(--surface); border:1px solid var(--border); font-size:12px; font-weight:700}
+.flow-steps li.done button{color:var(--ink)}
+.flow-steps li.done .n{background:var(--accent-soft); border-color:var(--accent); color:var(--accent)}
+.flow-steps li.on button{border-color:var(--accent); color:var(--ink); background:var(--accent-soft); font-weight:650}
+.flow-steps li.on .n{background:var(--accent); border-color:var(--accent); color:var(--surface)}
+.flow-stage{background:var(--surface2); border-radius:10px; overflow:hidden}
+.flow-svg{display:block; width:100%; height:auto}
+.flow-cap{min-height:3.2em; margin:10px 2px 6px; font-size:15.5px}
+.flow-cap .badge{display:inline-block; padding:1px 10px; border-radius:999px; font-weight:650; color:#fff}
+.flow-code{margin:8px 0; border:1px solid var(--border); border-radius:10px; background:var(--code-bg); overflow-x:auto}
+.flow-code pre{margin:0; padding:10px 0; font-size:13px; line-height:1.55}
+.flow-code .ln{display:inline-block; min-width:100%; padding:0 14px; border-left:3px solid transparent; transition:background .25s}
+.flow-code .ln.on{background:var(--accent-soft); border-left-color:var(--accent)}
+.flow-ctl{display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; font-size:14px; position:relative; padding-bottom:8px}
+.flow-ctl button{font:inherit; font-size:14px; border:1px solid var(--border); background:var(--surface2); color:var(--ink); border-radius:8px; padding:4px 10px; cursor:pointer; min-width:36px}
+.flow-ctl button.primary{background:var(--accent); border-color:var(--accent); color:var(--surface); font-weight:650; padding:4px 16px}
+.flow-ctl select{font:inherit; font-size:14px; border:1px solid var(--border); background:var(--surface); color:var(--ink); border-radius:8px; padding:3px 6px}
+.flow-ctl .opts{display:inline-flex; flex-wrap:wrap; gap:8px 12px}
+.flow-ctl label{display:inline-flex; align-items:center; gap:6px}
+.flow-prog{position:absolute; left:0; right:0; bottom:0; height:3px; background:var(--border); border-radius:3px; overflow:hidden}
+.flow-prog span{display:block; height:100%; width:0; background:var(--accent); transition:width .3s}
+.flow-extra .hint{color:var(--muted); font-size:13px; margin-top:4px}
+/* K-NN flow visuals */
+.fl-axis{stroke:var(--muted); stroke-width:1.5}
+.fl-tick{fill:var(--muted); font:12px system-ui, sans-serif; text-anchor:middle}
+.fl-leg{font:600 12.5px system-ui, sans-serif} .fl-leg.c1{fill:var(--b)} .fl-leg.c0{fill:var(--a)}
+.fl-pt{stroke:var(--surface); stroke-width:2; transition:opacity .35s, r .2s}
+.fl-pt.c1{fill:var(--b)} .fl-pt.c0{fill:var(--a)}
+.fl-pt.cur{r:10}
+.fl-pt.fade{opacity:.25}
+.fl-ring{fill:none; stroke:var(--ink); stroke-width:2.2; opacity:0; transition:opacity .4s}
+.fl-ring.show{opacity:1}
+.fl-band{fill:var(--accent); opacity:0; transition:opacity .4s, x .5s, width .5s}
+.fl-band.show{opacity:.13}
+.fl-dline{stroke:var(--ink); stroke-width:1.6; stroke-dasharray:5 4; opacity:0; transition:opacity .2s}
+.fl-dline.show{opacity:1}
+.fl-dtext{fill:var(--ink); font:600 12.5px Consolas, monospace; text-anchor:middle; opacity:0; paint-order:stroke; stroke:var(--surface2); stroke-width:4px}
+.fl-dtext.show{opacity:1}
+.fl-star{opacity:0; transition:opacity .5s}
+.fl-star polygon{fill:var(--q); stroke:var(--ink); stroke-width:1.5; transition:fill .4s}
+.fl-star.show{opacity:1}
+.fl-star.r1 polygon{fill:var(--b)} .fl-star.r0 polygon{fill:var(--a)}
+.fl-qtext{fill:var(--ink); font:700 13px system-ui, sans-serif; text-anchor:middle}
+.fl-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+.fl-chip{font-size:12.5px; font-family:Consolas, "Courier New", monospace; padding:3px 8px; border-radius:7px; border:1px solid var(--border); border-left:4px solid; background:var(--surface2); transition:opacity .35s, background .25s, box-shadow .25s; white-space:nowrap}
+.fl-chip.c1{border-left-color:var(--b)} .fl-chip.c0{border-left-color:var(--a)}
+.fl-chip.cur{background:var(--accent-soft); box-shadow:0 0 0 2px var(--accent)}
+.fl-chip.pick{box-shadow:0 0 0 2px var(--ink); font-weight:700}
+.fl-chip.fade{opacity:.35}
+@media (prefers-reduced-motion: reduce){ .flow *, .flow-svg *{transition:none !important} }
+
+/* ---------- index page ---------- */
+.idx{max-width:960px; margin:0 auto; padding:0 20px 80px}
+.cards{display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px; margin-top:24px}
+.card{display:flex; flex-direction:column; gap:6px; border:1px solid var(--border); background:var(--surface); border-radius:14px; padding:18px 18px 16px; text-decoration:none; color:var(--ink); transition:border-color .2s, transform .2s}
+a.card:hover{border-color:var(--accent); transform:translateY(-2px)}
+.card .no{font-size:12.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-weight:700}
+.card h2{font-size:21px; margin:0; line-height:1.25}
+.card p{margin:0; color:var(--muted); font-size:15px; line-height:1.5}
+.card .tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:auto; padding-top:8px}
+.card .tag{font-size:12px; border:1px solid var(--border); border-radius:999px; padding:0 8px; color:var(--muted)}
+.card.soon{opacity:.6}
+.card .state{font-size:12.5px; font-weight:600; color:var(--muted)}
+.fl-qtext{paint-order:stroke; stroke:var(--surface2); stroke-width:4px}
+@media (max-width:640px){
+  .fl-tick{font-size:24px} .fl-leg{font-size:22px} .fl-dtext{font-size:24px; stroke-width:6px} .fl-qtext{font-size:24px; stroke-width:6px}
+  .fl-pt{r:11} .fl-pt.cur{r:15} .fl-ring{r:18; stroke-width:3.5}
+  .fl-star polygon{transform:scale(1.6)} .fl-qtext{transform:translateY(-12px)}
+  .fl-chip{font-size:11.5px; padding:2px 6px}
+  .fl-chip .lb{display:none}
+  .flow-steps button{font-size:12.5px}
+}
+
+/* ---------- linear regression flow ---------- */
+.lr-grid{stroke:var(--border); stroke-width:1}
+.lr-axl{fill:var(--muted); font:600 13px system-ui, sans-serif; text-anchor:middle}
+.lr-pt{fill:var(--ink); stroke:var(--surface2); stroke-width:2; transition:r .2s}
+.lr-pt.cur{r:9; fill:var(--q)}
+.lr-mean{stroke:var(--muted); stroke-width:1.5; stroke-dasharray:6 5; opacity:0; transition:opacity .4s}
+.lr-mean.show{opacity:1}
+.lr-center{fill:var(--accent); stroke:var(--surface2); stroke-width:2; opacity:0; transition:opacity .4s}
+.lr-center.show{opacity:1}
+.lr-ctext{fill:var(--accent); font:700 13px system-ui, sans-serif; opacity:0; paint-order:stroke; stroke:var(--surface2); stroke-width:4px}
+.lr-ctext.show{opacity:1}
+.lr-rect{stroke-width:1.2}
+.lr-rect.pos{fill:var(--b); fill-opacity:.14; stroke:var(--b); stroke-opacity:.5}
+.lr-rect.neg{fill:var(--a); fill-opacity:.2; stroke:var(--a); stroke-opacity:.6}
+.lr-rect.cur{fill-opacity:.38; stroke-opacity:1; stroke-width:2}
+.lr-rect.dim{fill-opacity:.07; stroke-opacity:.25}
+.lr-fitline{stroke:var(--q); stroke-width:3.5; opacity:0; transition:opacity .6s}
+.lr-fitline.show{opacity:1}
+.lr-res{stroke:var(--a); stroke-width:2}
+.lr-sums{display:flex; flex-wrap:wrap; gap:6px 16px; font-family:Consolas, "Courier New", monospace; font-size:13.5px; margin-top:6px; padding:6px 10px; background:var(--surface2); border-radius:8px}
+@media (max-width:640px){ .lr-axl{font-size:24px} .lr-ctext{font-size:22px} .lr-pt{r:9} .lr-pt.cur{r:13} }
+.mathblock{display:block; overflow-x:auto; overflow-y:hidden; margin:.6em 0; padding:2px 0}
+.mathblock math{margin:0}
+@media (max-width:640px){
+  .content span.katex{display:inline-block; max-width:100%; overflow-x:auto; overflow-y:hidden; vertical-align:middle}
+  .mathblock span.katex{display:block}
+}
+
+/* ---------- naive bayes flow ---------- */
+.nb-stage{padding:10px}
+.nb-docs{display:grid; gap:4px; font-size:14px; margin-bottom:8px}
+.nb-doc{padding:3px 8px; border-left:4px solid var(--border); border-radius:6px; transition:background .3s}
+.nb-doc.cB{border-left-color:var(--a)} .nb-doc.cN{border-left-color:var(--b)}
+.nb-doc em{color:var(--muted); font-style:normal}
+.nb-doc.cur{background:var(--accent-soft)}
+.nb-doc.test{display:none; border-left-color:var(--q); background:var(--term-soft)}
+.nb-doc.test.show{display:block}
+.nb-doc .wd{display:inline-block; padding:0 6px; border-radius:5px; background:var(--surface); border:1px solid var(--border); font-size:13px}
+.nb-tw{margin:6px 0}
+.nb-table{font-size:13px; text-align:center}
+.nb-table th,.nb-table td{padding:4px 6px; text-align:center; white-space:nowrap; transition:background .3s}
+.nb-table th:first-child{text-align:left}
+.nb-table th.w{font-weight:600; font-size:12px; vertical-align:bottom}
+.nb-table td{font-family:Consolas, "Courier New", monospace; min-width:38px}
+.nb-table td.z{color:var(--muted)}
+.nb-table tr.cB th:first-child{border-left:4px solid var(--a)} .nb-table tr.cN th:first-child{border-left:4px solid var(--b)}
+.nb-table tr.tot td{font-weight:700}
+.nb-table tr.lam td{color:var(--accent); font-weight:600}
+.nb-table tr.lam td.zero{color:#fff; background:var(--a)}
+.nb-table tr.test th,.nb-table tr.test td{background:var(--term-soft)}
+.nb-table tr.cur td,.nb-table tr.cur th{background:var(--accent-soft)}
+.nb-table td.hit,.nb-table th.w.hit{box-shadow:inset 0 0 0 2px var(--q)}
+.nb-side{display:flex; flex-wrap:wrap; gap:6px 18px; font-size:14px; align-items:center; min-height:1.6em}
+.nb-bar{display:flex; width:100%; max-width:460px; height:24px; border-radius:6px; overflow:hidden; font-size:12.5px; font-weight:700; color:#fff}
+.nb-bar span{display:flex; align-items:center; padding-left:6px; white-space:nowrap; overflow:hidden; transition:width .6s}
+.flow-ctl select{max-width:100%}
+.flow-ctl .opts label{flex-wrap:wrap}
+/* ---- bài 4: logistic / softmax ---- */
+.ls-half{stroke:var(--muted); stroke-dasharray:4 4}
+.ls-curve{fill:none; stroke:var(--q); stroke-width:3.5; transition:d .5s}
+.ls-pt.c0 circle{fill:var(--a); stroke:var(--surface2); stroke-width:2}
+.ls-pt.c1 rect{fill:var(--b); stroke:var(--surface2); stroke-width:2}
+.ls-pt.cur circle, .ls-pt.cur rect{stroke:var(--ink); stroke-width:3.5}
+.ls-err{stroke-width:2.2; opacity:.85}
+.ls-err.c0{stroke:var(--a)} .ls-err.c1{stroke:var(--b)}
+.ls-h{fill:var(--q); stroke:var(--surface2); stroke-width:1.5}
+.ls-thr{stroke:var(--accent); stroke-width:2; stroke-dasharray:7 5; opacity:0; transition:opacity .4s}
+.ls-thr.show, .ls-thrt.show{opacity:1}
+.ls-thrt{fill:var(--accent); font:700 13px system-ui, sans-serif; opacity:0}
+.ls-tri{fill:var(--q); stroke:var(--ink); stroke-width:1.2}
+.ls-new path{stroke:var(--ink); stroke-width:1.5}
+.ls-new.c1 path{fill:var(--b)} .ls-new.c0 path{fill:var(--a)}
+.ls-drop{stroke:var(--muted); stroke-dasharray:3 3}
+.ls-newt{font:700 12px system-ui, sans-serif; fill:var(--ink); text-anchor:middle; paint-order:stroke; stroke:var(--surface2); stroke-width:4px}
+.ls-spark{display:block; width:100%; max-width:420px; height:auto; margin-top:6px}
+.ls-spk{fill:none; stroke:var(--accent); stroke-width:2}
+.ls-spk-min{stroke:var(--muted); stroke-dasharray:3 3}
+.ls-spk-t{font:9px system-ui, sans-serif; fill:var(--muted)}
+.ls-ctl label{display:inline-flex; align-items:center; gap:6px}
+.ls-ctl input[type=range]{width:120px}
+.ls-ctl .num{min-width:3.4em; display:inline-block}
+.ls-sm-in{display:grid; gap:6px; margin-bottom:8px}
+.ls-sm-row{display:grid; grid-template-columns:2.4em 1fr 3.6em; align-items:center; gap:10px}
+.ls-sm-row .nm{font-weight:700}
+.ls-sm-row input{width:100%}
+.ls-sm-ctl{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px}
+.ls-sm-bars{display:grid; gap:6px}
+.ls-bar{display:grid; grid-template-columns:4.2em 1fr 3.6em; align-items:center; gap:10px}
+.ls-bar .track{height:18px; background:var(--surface2); border-radius:6px; overflow:hidden; display:block}
+.ls-bar .fill{display:block; height:100%; border-radius:6px; transition:width .35s}
+.ls-sm-out div{margin-top:4px; overflow-wrap:anywhere}
+@media (max-width:640px){ .ls-thrt, .ls-newt{font-size:22px} .ls-ctl input[type=range]{width:100px} }
+:not(pre) > code{overflow-wrap:anywhere}
+/* ---- bài 5: PCA ---- */
+.pca-sep{stroke:var(--border); stroke-width:1.5}
+.pca-cax{stroke:var(--muted); stroke-dasharray:6 5; stroke-width:1.5}
+.pca-ell{fill:var(--q); fill-opacity:.12; stroke:var(--q); stroke-width:2}
+.pca-line{stroke:var(--accent); stroke-width:2.5; opacity:.8}
+.pca-proj{stroke:var(--muted); stroke-dasharray:3 3; stroke-width:1.3}
+.pca-pt{stroke:var(--surface2); stroke-width:1.5}
+.pca-pt.faded{opacity:.3}
+.pca-rec{stroke:var(--ink); stroke-width:1.5}
+.pca-foot{fill:var(--accent)}
+.pca-arrow{stroke:var(--ink); stroke-width:3}
+.pca-arrow.u2{stroke:var(--muted)}
+.pca-ghost{stroke:var(--muted); stroke-width:2}
+.pca-done{stroke:var(--b); stroke-width:3; stroke-dasharray:8 5}
+.pca-arh{fill:var(--ink)}
+.pca-lab{font:700 14px system-ui, sans-serif; fill:var(--ink); paint-order:stroke; stroke:var(--surface2); stroke-width:4px}
+.pca-mean path{stroke:var(--a); stroke-width:3.5}
+.pca-zax{stroke:var(--ink); stroke-width:1.5}
+.pca-handle{fill:var(--accent); fill-opacity:.25; stroke:var(--accent); stroke-width:2; cursor:grab}
+.pca-rot{touch-action:none; cursor:crosshair}
+.pca-unit{fill:none; stroke:var(--border); stroke-width:1.5}
+.pca-ang input{width:160px}
+.pca-bars{display:grid; gap:6px; margin-top:8px}
+.pca-bar{display:grid; grid-template-columns:9.5em 1fr 4.5em; align-items:center; gap:10px}
+.pca-bar .track{height:18px; background:var(--surface2); border-radius:6px; overflow:hidden; display:block}
+.pca-bar .fill{display:block; height:100%; border-radius:6px}
+.pca-bar .fill.f{background:var(--b)} .pca-bar .fill.j{background:var(--a)}
+.pca-pow{max-width:520px; margin:0 auto; display:block}
+@media (max-width:640px){ .pca-lab{font-size:22px} .pca-bar{grid-template-columns:7em 1fr 4em} }
+.pca-axl{font:600 13px system-ui, sans-serif; fill:var(--muted); paint-order:stroke; stroke:var(--surface2); stroke-width:4px} @media (max-width:640px){.pca-axl{font-size:20px}}
+/* ---- bài 6: LDA ---- */
+.lda-p1{fill:var(--a); stroke:var(--surface2); stroke-width:1.5}
+.lda-p2{fill:var(--b); stroke:var(--surface2); stroke-width:1.5}
+.lda-e1{fill:var(--a); fill-opacity:.08; stroke:var(--a); stroke-width:1.5; stroke-dasharray:5 4}
+.lda-e2{fill:var(--b); fill-opacity:.08; stroke:var(--b); stroke-width:1.5; stroke-dasharray:5 4}
+.lda-pcaline{stroke:var(--muted); stroke-width:2; stroke-dasharray:8 6}
+.lda-dm{stroke:var(--ink); stroke-width:1.5; stroke-dasharray:2 3}
+.lda-star{stroke:var(--ink); stroke-width:1.5}
+.lda-star.lda-s1{fill:var(--a)} .lda-star.lda-s2{fill:var(--b)}
+.lda-zax{stroke:var(--ink); stroke-width:1.5}
+.lda-zm1{stroke:var(--a); stroke-width:3} .lda-zm2{stroke:var(--b); stroke-width:3}
+.lda-lab{font:700 13px system-ui, sans-serif; fill:var(--ink); paint-order:stroke; stroke:var(--surface2); stroke-width:4px}
+.lda-meter{height:12px; background:var(--surface2); border-radius:6px; overflow:hidden; margin:6px 0; max-width:420px}
+.lda-meter .fill{display:block; height:100%; background:var(--accent); transition:width .2s}
+@media (max-width:640px){ .lda-lab{font-size:20px} }
+/* ---- bài 7: Perceptron ---- */
+.pla-pos{fill:var(--b); fill-opacity:.09}
+.pla-neg{fill:var(--a); fill-opacity:.09}
+.pla-thr{stroke:var(--ink); stroke-width:2.8}
+.pla-old{stroke:var(--muted); stroke-width:2; stroke-dasharray:6 5}
+.pla-p1{fill:var(--b); stroke:var(--surface2); stroke-width:1.5}
+.pla-p2{fill:var(--a); stroke:var(--surface2); stroke-width:1.5}
+.pla-p1.bad, .pla-p2.bad{stroke:var(--ink); stroke-width:3}
+.pla-ring{fill:none; stroke:var(--accent); stroke-width:2.5}
+.pla-lab{font:700 13px system-ui, sans-serif; fill:var(--ink); paint-order:stroke; stroke:var(--surface2); stroke-width:4px}
+.pla-rowl{font:600 12px system-ui, sans-serif; fill:var(--muted)}
+.pla-new{stroke:var(--ink); stroke-width:1.5}
+.pla-new.c1{fill:var(--b)} .pla-new.c0{fill:var(--a)}
+.pla-spark{display:block; width:100%; max-width:420px; height:auto}
+.pla-spark path{fill:none; stroke:var(--accent); stroke-width:2}
+@media (max-width:640px){ .pla-lab{font-size:20px} .pla-rowl{font-size:18px} }
+
+/* ---- bài 8–10: dùng chung ---- */
+.sim select{font:inherit; font-size:14px; border:1px solid var(--border); background:var(--surface); color:var(--ink); border-radius:6px; padding:2px 6px}
+.sim button:disabled{opacity:.45; cursor:default}
+.sim button.primary{background:var(--accent); border-color:var(--accent); color:var(--surface); font-weight:650}
+.sim .cv canvas{cursor:pointer}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-in">
+    <a class="home" href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Mục lục các bài</a>
+    <div class="eyebrow">Học máy · Bài 10</div>
+    <h1 class="title">K-means</h1>
+    <p class="lede">Tóm tắt slide và giải thích code. Bấm vào <span class="demo-gl">tên hàm</span> trong code hoặc <span class="demo-term">thuật ngữ</span> để xem giải thích ngay trong trang.</p>
+    <details class="sources"><summary>Nguồn tài liệu</summary><p><strong>Nguồn</strong> - Slide: <code>bai-giang/mix_gauss_kmeans.pdf</code> (Clustering): phần <em>Latent variable models</em>, <em>Gaussian Mixture Model</em>, <em>EM Algorithm</em>, <em>k-means Algorithm</em> và <em>Evaluation metrics of clustering algorithms</em>. - Code: <code>bai-tap/thuchanh_bai9_Kmeans_DBScan.pdf</code>, phần 1 (K-means: tự cài bằng numpy, so với sklearn, phân cụm chữ số viết tay). - Phần ghi "ngoài slide" là kiến thức bổ sung (k-means++, phương pháp khuỷu tay, tính hội tụ).</p>
+</details>
+  </div>
+  <button class="theme" type="button" aria-label="Đổi giao diện sáng/tối" title="Đổi giao diện sáng/tối"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg></button>
+</header>
+<div class="layout">
+  <nav class="side" aria-label="Mục lục"><details class="toc-wrap" open><summary>Mục lục</summary><ol class="toc"><li><a href="#luong-thuat-toan-xem-k-means-chay-tung-buoc">Luồng thuật toán: xem K-means chạy từng bước</a></li><li class="toc-part"><a href="#phan-1-ly-thuyet">PHẦN 1 — LÝ THUYẾT</a><ol><li><a href="#1-bai-toan-phan-cum">1. Bài toán phân cụm</a></li><li><a href="#2-tu-mo-hinh-tron-gaussian-gmm-den-k-means">2. Từ mô hình trộn Gaussian (GMM) đến K-means</a></li><li><a href="#3-ham-mat-mat">3. Hàm mất mát</a></li><li><a href="#4-thuat-toan-lloyd">4. Thuật toán (Lloyd)</a></li><li><a href="#5-khoi-tao-tam-va-k-means">5. Khởi tạo tâm và k-means++</a></li><li><a href="#6-chon-so-cum-k">6. Chọn số cụm K</a></li><li><a href="#7-danh-gia-ket-qua-phan-cum">7. Đánh giá kết quả phân cụm</a></li><li><a href="#8-uu-nhuoc-diem">8. Ưu, nhược điểm</a></li></ol></li><li class="toc-part"><a href="#phan-2-code">PHẦN 2 — CODE</a><ol><li><a href="#a-vi-du-1-tu-cai-k-means-bang-numpy">A. Ví dụ 1: tự cài K-means bằng numpy</a></li><li><a href="#b-so-sanh-voi-sklearn">B. So sánh với sklearn</a></li><li><a href="#c-vi-du-2-phan-cum-chu-so-viet-tay">C. Ví dụ 2: phân cụm chữ số viết tay</a></li><li><a href="#d-bai-tap-tu-thuc-hanh">D. Bài tập tự thực hành</a></li></ol></li></ol></details></nav>
+  <main class="content"><h2 id="luong-thuat-toan-xem-k-means-chay-tung-buoc">Luồng thuật toán: xem K-means chạy từng bước</h2>
+<p>Dữ liệu là 3 cụm Gaussian giống ví dụ 1 của đề (tâm thật <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>2</mn><mo>,</mo><mn>2</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(2, 2)</annotation></semantics></math></span>, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>8</mn><mo>,</mo><mn>3</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(8, 3)</annotation></semantics></math></span>, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>3</mn><mo>,</mo><mn>6</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(3, 6)</annotation></semantics></math></span>), rút gọn còn 40 điểm mỗi cụm để dễ nhìn. Mỗi vòng lặp gồm hai bước xen kẽ:</p>
+<ol type="1">
+<li><strong>(i)</strong> Khởi tạo <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> tâm cụm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝐦</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>𝐦</mi><mi>K</mi></msub></mrow><annotation encoding="application/x-tex">\mathbf m_1, \dots, \mathbf m_K</annotation></semantics></math></span> (chọn được: ngẫu nhiên, cách "xa nhau nhất" của slide, hoặc k-means++).</li>
+<li><strong>(ii)</strong> <strong>Gán nhãn</strong>: mỗi điểm thuộc về tâm gần nhất.</li>
+<li><strong>(iii)</strong> <strong>Cập nhật tâm</strong>: tâm mới là trung bình cộng các điểm trong cụm.</li>
+<li><strong>(iv)</strong> Kiểm tra: tâm không đổi thì dừng, còn đổi thì quay lại (ii).</li>
+<li><strong>(v)</strong> Kết quả: các cụm và giá trị hàm mất mát <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></span>.</li>
+</ol>
+<p>Thử chọn khởi tạo "ngẫu nhiên" với vài hạt giống khác nhau để thấy K-means có thể dừng ở nghiệm <strong>xấu</strong> (hai tâm nằm chung một cụm thật).</p>
+<div class="sim" data-sim="km-flow">
+</div>
+<h1 class="part" id="phan-1-ly-thuyet">PHẦN 1 — LÝ THUYẾT</h1>
+<h2 id="1-bai-toan-phan-cum">1. Bài toán phân cụm</h2>
+<p>Trong học <strong>có giám sát</strong>, mỗi điểm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐱</mi><mi>n</mi></msub><annotation encoding="application/x-tex">\mathbf x_n</annotation></semantics></math></span> đi kèm nhãn <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>y</mi><mi>n</mi></msub><annotation encoding="application/x-tex">y_n</annotation></semantics></math></span>. Trong <strong>phân cụm</strong> (clustering, học <strong>không giám sát</strong>) ta chỉ có <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>𝐗</mi><mo>=</mo><mo lspace="0em" rspace="0em" stretchy="false">{</mo><msub><mi>𝐱</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>𝐱</mi><mi>N</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">\mathbf X = \{\mathbf x_1, \dots, \mathbf x_N\}</annotation></semantics></math></span>, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝐱</mi><mi>n</mi></msub><mo>∈</mo><msup><mi>ℝ</mi><mi>d</mi></msup></mrow><annotation encoding="application/x-tex">\mathbf x_n \in \mathbb R^d</annotation></semantics></math></span>, và muốn chia dữ liệu thành <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> nhóm sao cho các điểm trong cùng một nhóm "gần nhau".</p>
+<p>Slide đặt câu hỏi: nếu chỉ có dữ liệu thô chưa gán nhãn, có cách nào xác định dữ liệu thực sự phân bố thành các cụm như thế nào không, giả thiết mỗi cụm có phân bố chuẩn (Gaussian)?</p>
+<h2 id="2-tu-mo-hinh-tron-gaussian-gmm-den-k-means">2. Từ mô hình trộn Gaussian (GMM) đến K-means</h2>
+<ul>
+<li><strong>GMM</strong>: dữ liệu sinh từ <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>C</mi><annotation encoding="application/x-tex">C</annotation></semantics></math></span> phân phối Gaussian, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>p</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>𝐱</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>=</mo><msubsup><mo>∑</mo><mrow><mi>c</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></msubsup><msub><mi>π</mi><mi>c</mi></msub><mspace width="0.167em"></mspace><mi>𝒩</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>𝐱</mi><mo>∣</mo><msub><mi>𝛍</mi><mi>c</mi></msub><mo>,</mo><msub><mi>Σ</mi><mi>c</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">p(\mathbf x) = \sum_{c=1}^{C}\pi_c\,\mathcal N(\mathbf x \mid \boldsymbol\mu_c, \Sigma_c)</annotation></semantics></math></span>. Biến ẩn <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>z</mi><mi>c</mi></msub><annotation encoding="application/x-tex">z_c</annotation></semantics></math></span> cho biết điểm thuộc cụm nào nhưng không quan sát được, nên GMM là <strong>mô hình biến ẩn</strong> (latent variable model).</li>
+<li><strong>Thuật toán EM</strong> ước lượng tham số bằng cách lặp hai bước:
+<ul>
+<li><strong>E-step</strong>: tính xác suất điểm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐱</mi><mi>n</mi></msub><annotation encoding="application/x-tex">\mathbf x_n</annotation></semantics></math></span> thuộc cụm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>c</mi><annotation encoding="application/x-tex">c</annotation></semantics></math></span>: <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>γ</mi><mrow><mi>n</mi><mi>c</mi></mrow></msub><mo>=</mo><mfrac displaystyle="true"><mrow><msub><mi>π</mi><mi>c</mi></msub><mi>𝒩</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>𝐱</mi><mi>n</mi></msub><mo>∣</mo><msub><mi>𝛍</mi><mi>c</mi></msub><mo>,</mo><msub><mi>Σ</mi><mi>c</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><mrow><msub><mo>∑</mo><mi>k</mi></msub><msub><mi>π</mi><mi>k</mi></msub><mi>𝒩</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>𝐱</mi><mi>n</mi></msub><mo>∣</mo><msub><mi>𝛍</mi><mi>k</mi></msub><mo>,</mo><msub><mi>Σ</mi><mi>k</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow></mfrac></mrow><annotation encoding="application/x-tex">\gamma_{nc} = \dfrac{\pi_c\mathcal N(\mathbf x_n\mid\boldsymbol\mu_c,\Sigma_c)}{\sum_k \pi_k\mathcal N(\mathbf x_n\mid\boldsymbol\mu_k,\Sigma_k)}</annotation></semantics></math></span>.</li>
+<li><strong>M-step</strong>: cập nhật <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝛍</mi><mi>c</mi></msub><mo>=</mo><mfrac displaystyle="true"><mrow><msub><mo>∑</mo><mi>n</mi></msub><msub><mi>γ</mi><mrow><mi>n</mi><mi>c</mi></mrow></msub><msub><mi>𝐱</mi><mi>n</mi></msub></mrow><mrow><msub><mo>∑</mo><mi>n</mi></msub><msub><mi>γ</mi><mrow><mi>n</mi><mi>c</mi></mrow></msub></mrow></mfrac></mrow><annotation encoding="application/x-tex">\boldsymbol\mu_c = \dfrac{\sum_n\gamma_{nc}\mathbf x_n}{\sum_n\gamma_{nc}}</annotation></semantics></math></span>, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Σ</mi><mi>c</mi></msub><annotation encoding="application/x-tex">\Sigma_c</annotation></semantics></math></span> và <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>π</mi><mi>c</mi></msub><mo>=</mo><mfrac><mn>1</mn><mi>N</mi></mfrac><msub><mo>∑</mo><mi>n</mi></msub><msub><mi>γ</mi><mrow><mi>n</mi><mi>c</mi></mrow></msub></mrow><annotation encoding="application/x-tex">\pi_c = \frac1N\sum_n\gamma_{nc}</annotation></semantics></math></span>.</li>
+</ul></li>
+<li><strong>K-means</strong> là trường hợp đặc biệt: thay xác suất "mềm" <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>γ</mi><mrow><mi>n</mi><mi>c</mi></mrow></msub><mo>∈</mo><mrow><mo lspace="0em" rspace="0em" stretchy="false">[</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo lspace="0em" rspace="0em" stretchy="false">]</mo></mrow></mrow><annotation encoding="application/x-tex">\gamma_{nc}\in[0,1]</annotation></semantics></math></span> bằng gán <strong>cứng</strong> cho tâm gần nhất (<span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>γ</mi><mrow><mi>n</mi><mi>c</mi></mrow></msub><mo>∈</mo><mo lspace="0em" rspace="0em" stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo lspace="0em" rspace="0em" stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">\gamma_{nc}\in\{0,1\}</annotation></semantics></math></span>), và chỉ giữ lại tâm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝛍</mi><mi>c</mi></msub><annotation encoding="application/x-tex">\boldsymbol\mu_c</annotation></semantics></math></span> (bỏ <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>Σ</mi><mi>c</mi></msub><annotation encoding="application/x-tex">\Sigma_c</annotation></semantics></math></span>, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>π</mi><mi>c</mi></msub><annotation encoding="application/x-tex">\pi_c</annotation></semantics></math></span>). Slide: "nếu xác định biến ẩn <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>z</mi><annotation encoding="application/x-tex">z</annotation></semantics></math></span> tại mỗi bước dựa trên việc điểm dữ liệu gần với tâm cụm nào hơn thì thuật toán trở nên đơn giản hơn".</li>
+</ul>
+<blockquote class="callout note">
+<p>📝 <strong>Ngoài slide.</strong> Nếu mọi cụm có cùng hiệp phương sai <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msup><mi>σ</mi><mn>2</mn></msup><mi>I</mi></mrow><annotation encoding="application/x-tex">\sigma^2 I</annotation></semantics></math></span> và cho <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>σ</mi><mo>→</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">\sigma \to 0</annotation></semantics></math></span>, xác suất <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>γ</mi><mrow><mi>n</mi><mi>c</mi></mrow></msub><annotation encoding="application/x-tex">\gamma_{nc}</annotation></semantics></math></span> của EM tiến về 0 hoặc 1, và EM trở thành đúng K-means.</p>
+</blockquote>
+<h2 id="3-ham-mat-mat">3. Hàm mất mát</h2>
+<p>Dùng biến chỉ thị <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>n</mi><mi>j</mi></mrow></msub><mo>∈</mo><mo lspace="0em" rspace="0em" stretchy="false">{</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo lspace="0em" rspace="0em" stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">y_{nj}\in\{0, 1\}</annotation></semantics></math></span>: <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>n</mi><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">y_{nj} = 1</annotation></semantics></math></span> khi và chỉ khi <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐱</mi><mi>n</mi></msub><annotation encoding="application/x-tex">\mathbf x_n</annotation></semantics></math></span> thuộc cụm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>j</mi><annotation encoding="application/x-tex">j</annotation></semantics></math></span>, ràng buộc <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></msubsup><msub><mi>y</mi><mrow><mi>n</mi><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">\sum_{j=1}^K y_{nj} = 1</annotation></semantics></math></span>. Tâm cụm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>M</mi><mo>=</mo><mo lspace="0em" rspace="0em" stretchy="false">{</mo><msub><mi>𝐦</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>𝐦</mi><mi>K</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">}</mo></mrow><annotation encoding="application/x-tex">M = \{\mathbf m_1,\dots,\mathbf m_K\}</annotation></semantics></math></span>. Tổng phương sai nội bộ (within-class variance, còn gọi <strong>inertia</strong> hay WCSS):</p>
+<p><span class="mathblock"><span class="katex"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>Y</mi><mo>,</mo><mi>M</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>=</mo><munderover><mo>∑</mo><mrow><mi>n</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><munderover><mo>∑</mo><mrow><mi>j</mi><mo>=</mo><mn>1</mn></mrow><mi>K</mi></munderover><msub><mi>y</mi><mrow><mi>n</mi><mi>j</mi></mrow></msub><mspace width="0.167em"></mspace><mo lspace="0em" rspace="0em" stretchy="false">∥</mo><msub><mi>𝐱</mi><mi>n</mi></msub><mo>−</mo><msub><mi>𝐦</mi><mi>j</mi></msub><msubsup><mo lspace="0em" rspace="0em" stretchy="false">∥</mo><mn>2</mn><mn>2</mn></msubsup><mspace width="0.278em"></mspace><mo>→</mo><mspace width="0.278em"></mspace><munder><mo>min</mo><mrow><mi>Y</mi><mo>,</mo><mspace width="0.167em"></mspace><mi>M</mi></mrow></munder></mrow><annotation encoding="application/x-tex">J(Y, M) = \sum_{n=1}^{N}\sum_{j=1}^{K} y_{nj}\,\lVert\mathbf x_n - \mathbf m_j\rVert_2^2 \;\longrightarrow\; \min_{Y,\,M}</annotation></semantics></math></span></span></p>
+<p>Bài toán có hai nhóm biến (<span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math></span> rời rạc, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math></span> liên tục), nên ta tối ưu <strong>xen kẽ</strong>: cố định một nhóm, tối ưu nhóm kia.</p>
+<p><strong>Cố định <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math></span>, tối ưu <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math></span>.</strong> Mỗi điểm chỉ góp vào đúng một số hạng, nên <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></span> nhỏ nhất khi mỗi điểm chọn tâm gần nhất:</p>
+<p><span class="mathblock"><span class="katex"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>n</mi><mi>j</mi></mrow></msub><mo>=</mo><mn>1</mn><mo>⇔</mo><mo lspace="0em" rspace="0em" stretchy="false">∥</mo><msub><mi>𝐱</mi><mi>n</mi></msub><mo>−</mo><msub><mi>𝐦</mi><mi>j</mi></msub><msubsup><mo lspace="0em" rspace="0em" stretchy="false">∥</mo><mn>2</mn><mn>2</mn></msubsup><mo>=</mo><munder><mo>min</mo><mi>c</mi></munder><mo lspace="0em" rspace="0em" stretchy="false">∥</mo><msub><mi>𝐱</mi><mi>n</mi></msub><mo>−</mo><msub><mi>𝐦</mi><mi>c</mi></msub><msubsup><mo lspace="0em" rspace="0em" stretchy="false">∥</mo><mn>2</mn><mn>2</mn></msubsup></mrow><annotation encoding="application/x-tex">y_{nj} = 1 \iff \lVert\mathbf x_n - \mathbf m_j\rVert_2^2 = \min_{c}\lVert\mathbf x_n - \mathbf m_c\rVert_2^2</annotation></semantics></math></span></span></p>
+<p><strong>Cố định <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>Y</mi><annotation encoding="application/x-tex">Y</annotation></semantics></math></span>, tối ưu <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>M</mi><annotation encoding="application/x-tex">M</annotation></semantics></math></span>.</strong> Đạo hàm theo <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐦</mi><mi>j</mi></msub><annotation encoding="application/x-tex">\mathbf m_j</annotation></semantics></math></span> và cho bằng 0:</p>
+<p><span class="mathblock"><span class="katex"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mrow><mi>∂</mi><mi>J</mi></mrow><mrow><mi>∂</mi><msub><mi>𝐦</mi><mi>j</mi></msub></mrow></mfrac><mo>=</mo><mo>−</mo><mn>2</mn><munder><mo>∑</mo><mi>n</mi></munder><msub><mi>y</mi><mrow><mi>n</mi><mi>j</mi></mrow></msub><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>𝐱</mi><mi>n</mi></msub><mo>−</mo><msub><mi>𝐦</mi><mi>j</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn><mspace width="0.278em"></mspace><mo>⇒</mo><mspace width="0.278em"></mspace><msub><mi>𝐦</mi><mi>j</mi></msub><mo>=</mo><mfrac><mn>1</mn><msub><mi>N</mi><mi>j</mi></msub></mfrac><munder><mo>∑</mo><mrow><msub><mi>𝐱</mi><mi>n</mi></msub><mo>∈</mo><msub><mi>𝒞</mi><mi>j</mi></msub></mrow></munder><msub><mi>𝐱</mi><mi>n</mi></msub><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>N</mi><mi>j</mi></msub><mo>=</mo><mrow><mo lspace="0em" rspace="0em" stretchy="false">|</mo><msub><mi>𝒞</mi><mi>j</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">|</mo></mrow></mrow><annotation encoding="application/x-tex">\frac{\partial J}{\partial\mathbf m_j} = -2\sum_{n} y_{nj}(\mathbf x_n - \mathbf m_j) = 0 \;\Longrightarrow\; \mathbf m_j = \frac{1}{N_j}\sum_{\mathbf x_n\in\mathcal C_j}\mathbf x_n,\qquad N_j = |\mathcal C_j|</annotation></semantics></math></span></span></p>
+<blockquote class="callout tip">
+<p>💡 <strong>Ví dụ.</strong> Cụm có ba điểm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(1, 1)</annotation></semantics></math></span>, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>2</mn><mo>,</mo><mn>1</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(2, 1)</annotation></semantics></math></span>, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>3</mn><mo>,</mo><mn>4</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(3, 4)</annotation></semantics></math></span>. Tâm mới là <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo lspace="0em" maxsize="1.2" minsize="1.2" rspace="0em" stretchy="false">(</mo><mfrac><mrow><mn>1</mn><mo>+</mo><mn>2</mn><mo>+</mo><mn>3</mn></mrow><mn>3</mn></mfrac><mo>,</mo><mfrac><mrow><mn>1</mn><mo>+</mo><mn>1</mn><mo>+</mo><mn>4</mn></mrow><mn>3</mn></mfrac><mo lspace="0em" maxsize="1.2" minsize="1.2" rspace="0em" stretchy="false">)</mo><mo>=</mo><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>2</mn><mo>,</mo><mn>2</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">\big(\frac{1+2+3}{3}, \frac{1+1+4}{3}\big) = (2, 2)</annotation></semantics></math></span>. Đóng góp vào <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></span>: <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>1</mn><mo>+</mo><mn>1</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>+</mo><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>0</mn><mo>+</mo><mn>1</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>+</mo><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>1</mn><mo>+</mo><mn>4</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>=</mo><mn>8</mn></mrow><annotation encoding="application/x-tex">(1+1) + (0+1) + (1+4) = 8</annotation></semantics></math></span>. Nếu giữ tâm cũ <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(1, 1)</annotation></semantics></math></span> thì đóng góp là <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mn>0</mn><mo>+</mo><mn>1</mn><mo>+</mo><mn>13</mn><mo>=</mo><mn>14</mn></mrow><annotation encoding="application/x-tex">0 + 1 + 13 = 14</annotation></semantics></math></span>, lớn hơn.</p>
+</blockquote>
+<h2 id="4-thuat-toan-lloyd">4. Thuật toán (Lloyd)</h2>
+<ol type="1">
+<li><strong>Khởi tạo</strong>: chọn <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> điểm dữ liệu khác nhau làm tâm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>𝐜</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>𝐜</mi><mi>K</mi></msub></mrow><annotation encoding="application/x-tex">\mathbf c_1,\dots,\mathbf c_K</annotation></semantics></math></span>.</li>
+<li><strong>Gán điểm vào cụm</strong>: với mỗi <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐱</mi><mi>n</mi></msub><annotation encoding="application/x-tex">\mathbf x_n</annotation></semantics></math></span>, tính <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>d</mi><mrow><mi>n</mi><mi>j</mi></mrow></msub><mo>=</mo><mtext mathvariant="normal">dist</mtext><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>𝐱</mi><mi>n</mi></msub><mo>,</mo><msub><mi>𝐜</mi><mi>j</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">d_{nj} = \text{dist}(\mathbf x_n, \mathbf c_j)</annotation></semantics></math></span> đến mọi tâm, gán vào cụm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>l</mi><annotation encoding="application/x-tex">l</annotation></semantics></math></span> có <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mrow><mi>n</mi><mi>l</mi></mrow></msub><annotation encoding="application/x-tex">d_{nl}</annotation></semantics></math></span> nhỏ nhất. Dữ liệu được chia thành <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>S</mi><mn>1</mn></msub><mo>,</mo><mi>…</mi><mo>,</mo><msub><mi>S</mi><mi>K</mi></msub></mrow><annotation encoding="application/x-tex">S_1, \dots, S_K</annotation></semantics></math></span>.</li>
+<li><strong>Xác định lại tâm</strong>: <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msubsup><mi>𝐜</mi><mi>j</mi><mtext mathvariant="normal">new</mtext></msubsup><mo>=</mo><mfrac><mn>1</mn><mrow><mo lspace="0em" rspace="0em" stretchy="false">|</mo><msub><mi>S</mi><mi>j</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">|</mo></mrow></mfrac><msub><mo>∑</mo><mrow><msub><mi>𝐱</mi><mi>n</mi></msub><mo>∈</mo><msub><mi>S</mi><mi>j</mi></msub></mrow></msub><msub><mi>𝐱</mi><mi>n</mi></msub></mrow><annotation encoding="application/x-tex">\mathbf c_j^{\text{new}} = \frac{1}{|S_j|}\sum_{\mathbf x_n\in S_j}\mathbf x_n</annotation></semantics></math></span>.</li>
+<li><strong>Dừng</strong> khi tâm ở bước <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">t + 1</annotation></semantics></math></span> trùng hoàn toàn với bước <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>t</mi><annotation encoding="application/x-tex">t</annotation></semantics></math></span>; ngược lại quay lại bước 2.</li>
+</ol>
+<p><strong>Tính chất (ngoài slide):</strong></p>
+<ul>
+<li>Mỗi bước 2 và 3 đều <strong>không làm tăng</strong> <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></span>. Số cách chia <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math></span> điểm vào <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> cụm là hữu hạn, nên thuật toán <strong>luôn dừng</strong> sau hữu hạn bước.</li>
+<li>Nhưng chỉ đạt <strong>cực tiểu cục bộ</strong>: kết quả phụ thuộc vào khởi tạo.</li>
+<li>Chi phí mỗi vòng: <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>N</mi><mo>⋅</mo><mi>K</mi><mo>⋅</mo><mi>d</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(N\cdot K\cdot d)</annotation></semantics></math></span> (tính khoảng cách từ <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>N</mi><annotation encoding="application/x-tex">N</annotation></semantics></math></span> điểm tới <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> tâm).</li>
+</ul>
+<h2 id="5-khoi-tao-tam-va-k-means">5. Khởi tạo tâm và k-means++</h2>
+<p>Vì K-means chỉ đạt cực tiểu cục bộ, cách khởi tạo quyết định chất lượng kết quả.</p>
+<p><strong>Cách slide gợi ý</strong> (không chọn các điểm khởi tạo quá gần nhau):</p>
+<ul>
+<li>chọn <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐜</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\mathbf c_1</annotation></semantics></math></span> bất kỳ;</li>
+<li>chọn <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐜</mi><mn>2</mn></msub><annotation encoding="application/x-tex">\mathbf c_2</annotation></semantics></math></span> xa <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐜</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\mathbf c_1</annotation></semantics></math></span> nhất có thể (khoảng cách Euclid);</li>
+<li>chọn <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐜</mi><mn>3</mn></msub><annotation encoding="application/x-tex">\mathbf c_3</annotation></semantics></math></span> sao cho <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">dist</mtext><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>𝐜</mi><mn>1</mn></msub><mo>,</mo><msub><mi>𝐜</mi><mn>3</mn></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>+</mo><mtext mathvariant="normal">dist</mtext><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>𝐜</mi><mn>2</mn></msub><mo>,</mo><msub><mi>𝐜</mi><mn>3</mn></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">\text{dist}(\mathbf c_1, \mathbf c_3) + \text{dist}(\mathbf c_2, \mathbf c_3)</annotation></semantics></math></span> lớn nhất;</li>
+<li>tiếp tục đến khi đủ <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> tâm.</li>
+</ul>
+<p>Cách này <strong>xác định</strong> (không ngẫu nhiên) và rất <strong>nhạy với ngoại lệ</strong>: điểm xa nhất thường chính là một điểm nhiễu.</p>
+<p><strong>k-means++ (ngoài slide; Arthur &amp; Vassilvitskii, 2007)</strong> giữ ý tưởng "tâm nên xa nhau" nhưng chọn <strong>ngẫu nhiên có trọng số</strong>:</p>
+<ol type="1">
+<li>Chọn <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>𝐜</mi><mn>1</mn></msub><annotation encoding="application/x-tex">\mathbf c_1</annotation></semantics></math></span> ngẫu nhiên đều trong <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐗</mi><annotation encoding="application/x-tex">\mathbf X</annotation></semantics></math></span>.</li>
+<li>Với mỗi điểm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐱</mi><annotation encoding="application/x-tex">\mathbf x</annotation></semantics></math></span>, tính <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>𝐱</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">D(\mathbf x)</annotation></semantics></math></span> = khoảng cách từ <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐱</mi><annotation encoding="application/x-tex">\mathbf x</annotation></semantics></math></span> tới tâm <strong>gần nhất</strong> đã chọn.</li>
+<li>Chọn tâm tiếp theo là <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>𝐱</mi><annotation encoding="application/x-tex">\mathbf x</annotation></semantics></math></span> với xác suất <span class="mathblock"><span class="katex"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>P</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>𝐱</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>D</mi><msup><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>𝐱</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow><mrow><munder><mo>∑</mo><mrow><mi>𝐱</mi><mi>′</mi><mo>∈</mo><mi>𝐗</mi></mrow></munder><mi>D</mi><msup><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>𝐱</mi><mi>′</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></mfrac></mrow><annotation encoding="application/x-tex">P(\mathbf x) = \frac{D(\mathbf x)^2}{\sum_{\mathbf x'\in\mathbf X} D(\mathbf x')^2}</annotation></semantics></math></span></span></li>
+<li>Lặp bước 2–3 đến khi đủ <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> tâm, rồi chạy Lloyd như bình thường.</li>
+</ol>
+<p>Điểm ở xa các tâm đã chọn có xác suất cao, nhưng một ngoại lệ đơn lẻ chỉ là <strong>một</strong> điểm, trong khi cả một cụm chưa có tâm gồm <strong>nhiều</strong> điểm cùng có <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>D</mi><annotation encoding="application/x-tex">D</annotation></semantics></math></span> lớn, nên xác suất chọn trúng cụm đó lớn hơn hẳn. Kỳ vọng của <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></span> sau k-means++ bị chặn trong khoảng <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mo>log</mo><mi>K</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(\log K)</annotation></semantics></math></span> lần nghiệm tối ưu.</p>
+<div class="tw"><table>
+<colgroup>
+<col style="width: 25%"/>
+<col style="width: 25%"/>
+<col style="width: 25%"/>
+<col style="width: 25%"/>
+</colgroup>
+<thead>
+<tr class="header">
+<th>Cách khởi tạo</th>
+<th>Chọn tâm</th>
+<th>Ưu</th>
+<th>Nhược</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Ngẫu nhiên <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> điểm (code của đề)</td>
+<td>đều ngẫu nhiên</td>
+<td>đơn giản</td>
+<td>dễ có hai tâm trong cùng một cụm</td>
+</tr>
+<tr class="even">
+<td>Xa nhau nhất (slide)</td>
+<td>xác định</td>
+<td>các tâm rất xa nhau</td>
+<td>nhạy với ngoại lệ</td>
+</tr>
+<tr class="odd">
+<td>k-means++</td>
+<td>ngẫu nhiên, trọng số <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msup><mi>D</mi><mn>2</mn></msup><annotation encoding="application/x-tex">D^2</annotation></semantics></math></span></td>
+<td>cân bằng, có bảo đảm</td>
+<td>cần <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> lượt duyệt dữ liệu</td>
+</tr>
+</tbody>
+</table></div>
+<p>Mô phỏng dưới đây cho chọn từng tâm k-means++ (độ lớn điểm thể hiện xác suất được chọn), và so sánh ba cách khởi tạo qua 200 lần chạy.</p>
+<div class="sim" data-sim="km-init">
+</div>
+<h2 id="6-chon-so-cum-k">6. Chọn số cụm K</h2>
+<p>Slide: số cụm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math></span> phù hợp nhất tùy theo dữ liệu, thường chọn bằng cách xét một dãy giá trị <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>k</mi><annotation encoding="application/x-tex">k</annotation></semantics></math></span> và tìm giá trị phù hợp nhất.</p>
+<ul>
+<li><strong>Phương pháp khuỷu tay (elbow, ngoài slide):</strong> vẽ <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></span> theo <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span>. <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></span> luôn giảm khi <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> tăng (với <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>K</mi><mo>=</mo><mi>N</mi></mrow><annotation encoding="application/x-tex">K = N</annotation></semantics></math></span> thì <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo>=</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">J = 0</annotation></semantics></math></span>), nên không chọn <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> có <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></span> nhỏ nhất mà chọn chỗ đường cong <strong>gãy</strong>: thêm cụm sau đó chỉ giảm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></span> rất ít.</li>
+<li><strong>Silhouette:</strong> chọn <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span> cho hệ số silhouette trung bình lớn nhất (mục 7).</li>
+</ul>
+<div class="sim" data-sim="km-elbow">
+</div>
+<h2 id="7-danh-gia-ket-qua-phan-cum">7. Đánh giá kết quả phân cụm</h2>
+<h3 id="khi-khong-co-nhan-that">Khi không có nhãn thật</h3>
+<p><strong>Silhouette.</strong> Với mỗi điểm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math></span>: <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>a</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>i</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">a(i)</annotation></semantics></math></span> là khoảng cách trung bình tới các điểm <strong>cùng cụm</strong>, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>b</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>i</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">b(i)</annotation></semantics></math></span> là khoảng cách trung bình tới các điểm của <strong>cụm gần nhất khác</strong>.</p>
+<p><span class="mathblock"><span class="katex"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>i</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>b</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>i</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>−</mo><mi>a</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>i</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><mrow><mo>max</mo><mo lspace="0em" maxsize="1.2" minsize="1.2" rspace="0em" stretchy="false">(</mo><mi>a</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>i</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>,</mo><mi>b</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>i</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo lspace="0em" maxsize="1.2" minsize="1.2" rspace="0em" stretchy="false">)</mo></mrow></mfrac><mo>∈</mo><mrow><mo lspace="0em" rspace="0em" stretchy="false">[</mo><mo>−</mo><mn>1</mn><mo>,</mo><mn>1</mn><mo lspace="0em" rspace="0em" stretchy="false">]</mo></mrow></mrow><annotation encoding="application/x-tex">s(i) = \frac{b(i) - a(i)}{\max\big(a(i), b(i)\big)}\in[-1, 1]</annotation></semantics></math></span></span></p>
+<p><span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>s</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>i</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">s(i)</annotation></semantics></math></span> gần 1: điểm nằm sâu trong cụm của nó; gần 0: nằm giữa hai cụm; âm: có lẽ bị gán nhầm cụm.</p>
+<p><strong>Davies–Bouldin (DBI).</strong> <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>σ</mi><mi>i</mi></msub><annotation encoding="application/x-tex">\sigma_i</annotation></semantics></math></span> là độ rộng cụm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>i</mi><annotation encoding="application/x-tex">i</annotation></semantics></math></span> (khoảng cách trung bình tới tâm), <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>d</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">d_{ij}</annotation></semantics></math></span> là khoảng cách giữa hai tâm. Càng <strong>nhỏ</strong> càng tốt:</p>
+<p><span class="mathblock"><span class="katex"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>D</mi><mi>B</mi><mi>I</mi><mo>=</mo><mfrac><mn>1</mn><mi>C</mi></mfrac><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>C</mi></munderover><munder><mo>max</mo><mrow><mi>j</mi><mo>≠</mo><mi>i</mi></mrow></munder><mfrac><mrow><msub><mi>σ</mi><mi>i</mi></msub><mo>+</mo><msub><mi>σ</mi><mi>j</mi></msub></mrow><msub><mi>d</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mfrac></mrow><annotation encoding="application/x-tex">DBI = \frac1C\sum_{i=1}^{C}\max_{j\ne i}\frac{\sigma_i + \sigma_j}{d_{ij}}</annotation></semantics></math></span></span></p>
+<p><strong>Calinski–Harabasz (CH).</strong> Tỉ lệ phương sai giữa các cụm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">Tr</mtext><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>B</mi><mi>k</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">\text{Tr}(B_k)</annotation></semantics></math></span> và trong cụm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtext mathvariant="normal">Tr</mtext><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>W</mi><mi>k</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">\text{Tr}(W_k)</annotation></semantics></math></span>. Càng <strong>lớn</strong> càng tốt:</p>
+<p><span class="mathblock"><span class="katex"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>C</mi><mi>H</mi><mo>=</mo><mfrac><mrow><mtext mathvariant="normal">Tr</mtext><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>B</mi><mi>k</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><mrow><mtext mathvariant="normal">Tr</mtext><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>W</mi><mi>k</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow></mfrac><mo>⋅</mo><mfrac><mrow><mi>N</mi><mo>−</mo><mi>k</mi></mrow><mrow><mi>k</mi><mo>−</mo><mn>1</mn></mrow></mfrac></mrow><annotation encoding="application/x-tex">CH = \frac{\text{Tr}(B_k)}{\text{Tr}(W_k)}\cdot\frac{N - k}{k - 1}</annotation></semantics></math></span></span></p>
+<h3 id="khi-co-nhan-that">Khi có nhãn thật</h3>
+<p><strong>Rand Index (RI)</strong> xét mọi cặp điểm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><msub><mi>𝐱</mi><mi>m</mi></msub><mo>,</mo><msub><mi>𝐱</mi><mi>n</mi></msub><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">(\mathbf x_m, \mathbf x_n)</annotation></semantics></math></span>:</p>
+<div class="tw"><table>
+<thead>
+<tr class="header">
+<th>Trường hợp</th>
+<th>Nhãn thật</th>
+<th>Kết quả phân cụm</th>
+<th>Ý nghĩa</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>TP</td>
+<td>cùng nhãn</td>
+<td>cùng cụm</td>
+<td>đúng, cặp giống nhau</td>
+</tr>
+<tr class="even">
+<td>TN</td>
+<td>khác nhãn</td>
+<td>khác cụm</td>
+<td>đúng, cặp khác nhau</td>
+</tr>
+<tr class="odd">
+<td>FP</td>
+<td>khác nhãn</td>
+<td>cùng cụm</td>
+<td>sai, gộp nhầm</td>
+</tr>
+<tr class="even">
+<td>FN</td>
+<td>cùng nhãn</td>
+<td>khác cụm</td>
+<td>sai, chia nhầm</td>
+</tr>
+</tbody>
+</table></div>
+<p><span class="mathblock"><span class="katex"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>R</mi><mi>I</mi><mo>=</mo><mfrac><mrow><mi>T</mi><mi>P</mi><mo>+</mo><mi>T</mi><mi>N</mi></mrow><mrow><mi>T</mi><mi>P</mi><mo>+</mo><mi>T</mi><mi>N</mi><mo>+</mo><mi>F</mi><mi>P</mi><mo>+</mo><mi>F</mi><mi>N</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">RI = \frac{TP + TN}{TP + TN + FP + FN}</annotation></semantics></math></span></span></p>
+<p>RI có thể <strong>cao dù phân cụm kém</strong>, nhất là khi các lớp mất cân bằng (phần lớn các cặp là "khác nhãn – khác cụm"). <strong>Adjusted Rand Index</strong> trừ đi giá trị kỳ vọng khi gán ngẫu nhiên:</p>
+<p><span class="mathblock"><span class="katex"><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>R</mi><mi>I</mi><mo>=</mo><mfrac><mrow><mi>R</mi><mi>I</mi><mo>−</mo><mi>𝔼</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">[</mo><mi>R</mi><mi>I</mi><mo lspace="0em" rspace="0em" stretchy="false">]</mo></mrow></mrow><mrow><mo>max</mo><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>R</mi><mi>I</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mo>−</mo><mi>𝔼</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">[</mo><mi>R</mi><mi>I</mi><mo lspace="0em" rspace="0em" stretchy="false">]</mo></mrow></mrow></mfrac><mo>,</mo><mspace width="2.0em"></mspace><mi>𝔼</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">[</mo><mi>R</mi><mi>I</mi><mo lspace="0em" rspace="0em" stretchy="false">]</mo></mrow><mo>=</mo><mfrac><mrow><munder><mo>∑</mo><mi>i</mi></munder><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mfrac linethickness="0"><msub><mi>a</mi><mi>i</mi></msub><mn>2</mn></mfrac><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><munder><mo>∑</mo><mi>j</mi></munder><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mfrac linethickness="0"><msub><mi>b</mi><mi>j</mi></msub><mn>2</mn></mfrac><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><msup><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mfrac linethickness="0"><mi>N</mi><mn>2</mn></mfrac><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow><mn>2</mn></msup></mfrac></mrow><annotation encoding="application/x-tex">ARI = \frac{RI - \mathbb E[RI]}{\max(RI) - \mathbb E[RI]},\qquad \mathbb E[RI] = \frac{\sum_i\binom{a_i}{2}\sum_j\binom{b_j}{2}}{\binom N2^2}</annotation></semantics></math></span></span></p>
+<p>với <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>n</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><annotation encoding="application/x-tex">n_{ij}</annotation></semantics></math></span> là số điểm thuộc lớp <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>A</mi><mi>i</mi></msub><annotation encoding="application/x-tex">A_i</annotation></semantics></math></span> và cụm <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><msub><mi>B</mi><mi>j</mi></msub><annotation encoding="application/x-tex">B_j</annotation></semantics></math></span>, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>a</mi><mi>i</mi></msub><mo>=</mo><msub><mo>∑</mo><mi>j</mi></msub><msub><mi>n</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">a_i = \sum_j n_{ij}</annotation></semantics></math></span>, <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>b</mi><mi>j</mi></msub><mo>=</mo><msub><mo>∑</mo><mi>i</mi></msub><msub><mi>n</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow><annotation encoding="application/x-tex">b_j = \sum_i n_{ij}</annotation></semantics></math></span>. <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>R</mi><mi>I</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">ARI = 1</annotation></semantics></math></span>: khớp hoàn toàn; <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>R</mi><mi>I</mi><mo>≈</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">ARI \approx 0</annotation></semantics></math></span>: không hơn ngẫu nhiên; <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mi>R</mi><mi>I</mi><mo>&lt;</mo><mn>0</mn></mrow><annotation encoding="application/x-tex">ARI &lt; 0</annotation></semantics></math></span>: tệ hơn ngẫu nhiên.</p>
+<h2 id="8-uu-nhuoc-diem">8. Ưu, nhược điểm</h2>
+<ul>
+<li><strong>Ưu:</strong> đơn giản, nhanh (<span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>N</mi><mi>K</mi><mi>d</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(NKd)</annotation></semantics></math></span> mỗi vòng), dễ áp dụng cho dữ liệu lớn.</li>
+<li><strong>Nhược:</strong> phải biết trước <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>K</mi><annotation encoding="application/x-tex">K</annotation></semantics></math></span>; phụ thuộc khởi tạo; chỉ hợp với cụm <strong>gần hình cầu, kích thước tương đương</strong> (vì dùng khoảng cách Euclid tới tâm); nhạy với ngoại lệ (tâm là trung bình); cần <strong>chuẩn hoá</strong> dữ liệu khi các đặc trưng có thang đo khác nhau.</li>
+</ul>
+<blockquote class="callout warn">
+<p>⚠️ Với dữ liệu hình "trăng khuyết" hoặc vòng tròn lồng nhau, K-means luôn cắt bằng các đường thẳng (biên giữa hai tâm là đường trung trực), nên không tách đúng được. Bài 9 (DBSCAN) xử lý được trường hợp này.</p>
+</blockquote>
+<h1 class="part" id="phan-2-code">PHẦN 2 — CODE</h1>
+<h2 id="a-vi-du-1-tu-cai-k-means-bang-numpy">A. Ví dụ 1: tự cài K-means bằng numpy</h2>
+<p>Tạo 3 cụm Gaussian, mỗi cụm 500 điểm, cùng hiệp phương sai <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>I</mi><annotation encoding="application/x-tex">I</annotation></semantics></math></span>:</p>
+<div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Sao chép</button></div><pre><code><span class="c-kw">import</span> numpy <span class="c-kw">as</span> np
+<span class="c-kw">import</span> matplotlib.pyplot <span class="c-kw">as</span> plt
+<span class="c-kw">from</span> scipy.spatial.distance <span class="c-kw">import</span> <span class="gl" data-g="f6" role="button" tabindex="0">cdist</span>
+np.random.seed(<span class="c-num">11</span>)
+
+<span class="c-arg">means</span> = [[<span class="c-num">2</span>, <span class="c-num">2</span>], [<span class="c-num">8</span>, <span class="c-num">3</span>], [<span class="c-num">3</span>, <span class="c-num">6</span>]]
+<span class="c-arg">cov</span> = [[<span class="c-num">1</span>, <span class="c-num">0</span>], [<span class="c-num">0</span>, <span class="c-num">1</span>]]
+<span class="c-arg">N</span> = <span class="c-num">500</span>
+<span class="c-arg">X0</span> = np.random.<span class="gl" data-g="f10" role="button" tabindex="0">multivariate_normal</span>(means[<span class="c-num">0</span>], cov, N)
+<span class="c-arg">X1</span> = np.random.<span class="gl" data-g="f10" role="button" tabindex="0">multivariate_normal</span>(means[<span class="c-num">1</span>], cov, N)
+<span class="c-arg">X2</span> = np.random.<span class="gl" data-g="f10" role="button" tabindex="0">multivariate_normal</span>(means[<span class="c-num">2</span>], cov, N)
+<span class="c-arg">X</span> = np.<span class="gl" data-g="f11" role="button" tabindex="0">concatenate</span>((X0, X1, X2), axis=<span class="c-num">0</span>)    <span class="c-com"># (1500, 2)</span>
+<span class="c-arg">K</span> = <span class="c-num">3</span>
+<span class="c-arg">original_label</span> = np.asarray([<span class="c-num">0</span>]*N + [<span class="c-num">1</span>]*N + [<span class="c-num">2</span>]*N).T</code></pre></div>
+<p>Bốn hàm của đề, mỗi hàm ứng với một bước của thuật toán:</p>
+<div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Sao chép</button></div><pre><code><span class="c-kw">def</span> <span class="gl c-def" data-g="f0" role="button" tabindex="0">kmeans_init_centers</span>(X, k):
+    <span class="c-com"># chọn ngẫu nhiên k hàng (k điểm khác nhau) làm tâm ban đầu</span>
+    <span class="c-kw">return</span> X[np.random.<span class="gl" data-g="f8" role="button" tabindex="0">choice</span>(X.shape[<span class="c-num">0</span>], k, replace=<span class="c-kw">False</span>)]
+
+<span class="c-kw">def</span> <span class="gl c-def" data-g="f1" role="button" tabindex="0">kmeans_assign_labels</span>(X, centers):
+    <span class="c-arg">D</span> = <span class="gl" data-g="f6" role="button" tabindex="0">cdist</span>(X, centers)            <span class="c-com"># ma trận khoảng cách (N, K)</span>
+    <span class="c-kw">return</span> np.<span class="gl" data-g="f7" role="button" tabindex="0">argmin</span>(D, axis=<span class="c-num">1</span>)      <span class="c-com"># chỉ số tâm gần nhất của mỗi điểm</span>
+
+<span class="c-kw">def</span> <span class="gl c-def" data-g="f2" role="button" tabindex="0">kmeans_update_centers</span>(X, labels, K):
+    <span class="c-arg">centers</span> = np.zeros((K, X.shape[<span class="c-num">1</span>]))
+    <span class="c-kw">for</span> k <span class="c-kw">in</span> <span class="c-bi">range</span>(K):
+        <span class="c-arg">Xk</span> = X[labels == k, :]       <span class="c-com"># các điểm thuộc cụm k</span>
+        centers[k, :] = np.<span class="gl" data-g="f9" role="button" tabindex="0">mean</span>(Xk, axis=<span class="c-num">0</span>)
+    <span class="c-kw">return</span> centers
+
+<span class="c-kw">def</span> <span class="gl c-def" data-g="f3" role="button" tabindex="0">has_converged</span>(centers, new_centers):
+    <span class="c-com"># True nếu hai tập tâm giống hệt nhau</span>
+    <span class="c-kw">return</span> (<span class="c-bi">set</span>([<span class="c-bi">tuple</span>(a) <span class="c-kw">for</span> a <span class="c-kw">in</span> centers]) ==
+            <span class="c-bi">set</span>([<span class="c-bi">tuple</span>(a) <span class="c-kw">for</span> a <span class="c-kw">in</span> new_centers]))
+
+<span class="c-kw">def</span> <span class="c-def">kmeans</span>(X, K):
+    <span class="c-arg">centers</span> = [<span class="gl" data-g="f0" role="button" tabindex="0">kmeans_init_centers</span>(X, K)]
+    <span class="c-arg">labels</span> = []
+    <span class="c-arg">it</span> = <span class="c-num">0</span>
+    <span class="c-kw">while</span> <span class="c-kw">True</span>:
+        labels.append(<span class="gl" data-g="f1" role="button" tabindex="0">kmeans_assign_labels</span>(X, centers[-<span class="c-num">1</span>]))
+        <span class="c-arg">new_centers</span> = <span class="gl" data-g="f2" role="button" tabindex="0">kmeans_update_centers</span>(X, labels[-<span class="c-num">1</span>], K)
+        <span class="c-kw">if</span> <span class="gl" data-g="f3" role="button" tabindex="0">has_converged</span>(centers[-<span class="c-num">1</span>], new_centers):
+            <span class="c-kw">break</span>
+        centers.append(new_centers)
+        <span class="c-arg">it</span> += <span class="c-num">1</span>
+    <span class="c-kw">return</span> (centers, labels, it)
+
+(centers, labels, it) = kmeans(X, K)
+<span class="c-bi">print</span>(<span class="c-str">'Centers found by our algorithm:'</span>)
+<span class="c-bi">print</span>(centers[-<span class="c-num">1</span>])</code></pre></div>
+<blockquote class="callout warn">
+<p>⚠️ <strong>Lưu ý về code đề:</strong> 1. <code class="gl" data-g="f0" role="button" tabindex="0">kmeans_init_centers</code> chọn <strong>ngẫu nhiên đều</strong>, chưa phải k-means++ hay cách "xa nhau nhất" của slide. Chạy với <code>np.random.seed</code> khác nhau có thể cho kết quả khác. 2. Nếu một cụm bị <strong>rỗng</strong> (không điểm nào gần tâm đó), <code class="gl" data-g="f9" role="button" tabindex="0">np.mean</code> trên mảng rỗng trả về <code>nan</code> kèm cảnh báo, và từ đó tâm này hỏng. Nên giữ lại tâm cũ hoặc chọn lại một điểm ngẫu nhiên. 3. <code class="gl" data-g="f3" role="button" tabindex="0">has_converged</code> so sánh <strong>bằng tuyệt đối</strong> các số thực. Ở đây vẫn dừng được vì khi nhãn không đổi thì tâm mới được tính lại giống hệt, nhưng an toàn hơn là kiểm tra nhãn không đổi hoặc dùng <code>np.allclose</code>. 4. <code class="gl" data-g="f6" role="button" tabindex="0">cdist(X, centers)</code> tạo ma trận <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>N</mi><mo>×</mo><mi>K</mi></mrow><annotation encoding="application/x-tex">N\times K</annotation></semantics></math></span>: bộ nhớ <span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>O</mi><mrow><mo lspace="0em" rspace="0em" stretchy="false">(</mo><mi>N</mi><mi>K</mi><mo lspace="0em" rspace="0em" stretchy="false">)</mo></mrow></mrow><annotation encoding="application/x-tex">O(NK)</annotation></semantics></math></span>, không vấn đề với dữ liệu này.</p>
+</blockquote>
+<p>Phiên bản có k-means++ và xử lý cụm rỗng (chỉ cần thay hàm khởi tạo):</p>
+<div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Sao chép</button></div><pre><code><span class="c-kw">def</span> <span class="gl c-def" data-g="f4" role="button" tabindex="0">kmeans_pp_init</span>(X, k, rng=np.random.default_rng(<span class="c-num">0</span>)):
+    <span class="c-arg">centers</span> = [X[rng.integers(<span class="c-bi">len</span>(X))]]
+    <span class="c-kw">for</span> _ <span class="c-kw">in</span> <span class="c-bi">range</span>(<span class="c-num">1</span>, k):
+        <span class="c-arg">D2</span> = np.<span class="c-bi">min</span>(<span class="gl" data-g="f6" role="button" tabindex="0">cdist</span>(X, np.array(centers)), axis=<span class="c-num">1</span>) ** <span class="c-num">2</span>   <span class="c-com"># D(x)^2</span>
+        <span class="c-arg">p</span> = D2 / D2.<span class="c-bi">sum</span>()
+        centers.append(X[rng.<span class="gl" data-g="f8" role="button" tabindex="0">choice</span>(<span class="c-bi">len</span>(X), p=p)])
+    <span class="c-kw">return</span> np.array(centers)
+
+<span class="c-kw">def</span> <span class="gl c-def" data-g="f5" role="button" tabindex="0">kmeans_update_centers_safe</span>(X, labels, K, old):
+    <span class="c-arg">centers</span> = old.copy()
+    <span class="c-kw">for</span> k <span class="c-kw">in</span> <span class="c-bi">range</span>(K):
+        <span class="c-arg">Xk</span> = X[labels == k]
+        <span class="c-kw">if</span> <span class="c-bi">len</span>(Xk):                    <span class="c-com"># cụm rỗng thì giữ tâm cũ</span>
+            centers[k] = Xk.<span class="gl" data-g="f9" role="button" tabindex="0">mean</span>(axis=<span class="c-num">0</span>)
+    <span class="c-kw">return</span> centers</code></pre></div>
+<h2 id="b-so-sanh-voi-sklearn">B. So sánh với sklearn</h2>
+<div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Sao chép</button></div><pre><code><span class="c-kw">from</span> sklearn.cluster <span class="c-kw">import</span> <span class="gl" data-g="f12" role="button" tabindex="0">KMeans</span>
+
+<span class="c-arg">kmeans</span> = <span class="gl" data-g="f12" role="button" tabindex="0">KMeans</span>(n_clusters=<span class="c-num">3</span>, random_state=<span class="c-num">0</span>).<span class="gl" data-g="f14" role="button" tabindex="0">fit</span>(X)
+<span class="c-bi">print</span>(<span class="c-str">'Centers found by scikit-learn:'</span>)
+<span class="c-bi">print</span>(kmeans.cluster_centers_)
+<span class="c-arg">pred_label</span> = kmeans.<span class="gl" data-g="f13" role="button" tabindex="0">predict</span>(X)</code></pre></div>
+<p><code class="gl" data-g="f12" role="button" tabindex="0">KMeans</code> mặc định dùng <code>init='k-means++'</code> và chạy lại nhiều lần với khởi tạo khác nhau (<code>n_init</code>), giữ kết quả có <code>inertia_</code> (<span class="katex"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mi>J</mi><annotation encoding="application/x-tex">J</annotation></semantics></math></span>) nhỏ nhất. Tâm tìm được giống tâm của hàm tự viết, có thể khác thứ tự (nhãn cụm là tuỳ ý).</p>
+<p>Đánh giá bằng các chỉ số ở mục 7 (có nhãn thật <code>original_label</code>):</p>
+<div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Sao chép</button></div><pre><code><span class="c-kw">from</span> sklearn.metrics <span class="c-kw">import</span> <span class="gl" data-g="f17" role="button" tabindex="0">silhouette_score</span>, <span class="gl" data-g="f18" role="button" tabindex="0">davies_bouldin_score</span>, <span class="gl" data-g="f19" role="button" tabindex="0">adjusted_rand_score</span>
+<span class="c-bi">print</span>(<span class="gl" data-g="f17" role="button" tabindex="0">silhouette_score</span>(X, pred_label))
+<span class="c-bi">print</span>(<span class="gl" data-g="f18" role="button" tabindex="0">davies_bouldin_score</span>(X, pred_label))
+<span class="c-bi">print</span>(<span class="gl" data-g="f19" role="button" tabindex="0">adjusted_rand_score</span>(original_label, pred_label))</code></pre></div>
+<h2 id="c-vi-du-2-phan-cum-chu-so-viet-tay">C. Ví dụ 2: phân cụm chữ số viết tay</h2>
+<div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Sao chép</button></div><pre><code><span class="c-kw">from</span> mnist <span class="c-kw">import</span> MNIST
+<span class="c-kw">from</span> sklearn.cluster <span class="c-kw">import</span> <span class="gl" data-g="f12" role="button" tabindex="0">KMeans</span>
+<span class="c-kw">from</span> sklearn.neighbors <span class="c-kw">import</span> <span class="gl" data-g="f15" role="button" tabindex="0">NearestNeighbors</span>
+
+<span class="c-arg">mndata</span> = MNIST(<span class="c-str">'../MNIST/'</span>)
+mndata.load_testing()
+<span class="c-arg">X</span> = mndata.test_images
+<span class="c-arg">X0</span> = np.asarray(X)[:<span class="c-num">1000</span>, :] / <span class="c-num">256.0</span>    <span class="c-com"># 1000 ảnh đầu, mỗi ảnh 784 chiều</span>
+<span class="c-arg">X</span> = X0
+
+<span class="c-arg">K</span> = <span class="c-num">10</span>
+<span class="c-arg">kmeans</span> = <span class="gl" data-g="f12" role="button" tabindex="0">KMeans</span>(n_clusters=K).<span class="gl" data-g="f14" role="button" tabindex="0">fit</span>(X)
+<span class="c-arg">pred_label</span> = kmeans.<span class="gl" data-g="f13" role="button" tabindex="0">predict</span>(X)</code></pre></div>
+<p>Mỗi tâm cụm là một vector 784 chiều, tức một "ảnh trung bình" 28×28 của cụm đó. Hàm <code>display_network</code> của đề xếp các ảnh này thành lưới để quan sát. Sau đó với mỗi cụm, lấy 20 ảnh gần tâm nhất:</p>
+<div class="code"><div class="code-bar"><span>python</span><button class="copy" type="button">Sao chép</button></div><pre><code><span class="c-arg">N0</span> = <span class="c-num">20</span>
+<span class="c-arg">X1</span> = np.zeros((N0*K, <span class="c-num">784</span>))
+<span class="c-arg">X2</span> = np.zeros((N0*K, <span class="c-num">784</span>))
+<span class="c-kw">for</span> k <span class="c-kw">in</span> <span class="c-bi">range</span>(K):
+    <span class="c-arg">Xk</span> = X0[pred_label == k, :]
+    <span class="c-arg">center_k</span> = [kmeans.cluster_centers_[k]]
+    <span class="c-arg">neigh</span> = <span class="gl" data-g="f15" role="button" tabindex="0">NearestNeighbors</span>(n_neighbors=N0).<span class="gl" data-g="f14" role="button" tabindex="0">fit</span>(Xk)
+    dist, nearest_id = neigh.<span class="gl" data-g="f16" role="button" tabindex="0">kneighbors</span>(center_k, N0)
+    X1[N0*k: N0*k + N0, :] = Xk[nearest_id, :]   <span class="c-com"># 20 ảnh gần tâm nhất</span>
+    X2[N0*k: N0*k + N0, :] = Xk[:N0, :]          <span class="c-com"># 20 ảnh bất kỳ trong cụm</span></code></pre></div>
+<blockquote class="callout warn">
+<p>⚠️ <strong>Lưu ý:</strong> 1. Mô tả của đề là "5000 mẫu từ phần training", nhưng code dùng <code>test_images</code> và 1000 mẫu đầu. Cần thống nhất trước khi nộp. 2. <code>scipy.misc.imsave</code> đã bị bỏ trong scipy mới; dùng <code>plt.imsave('aa.png', image)</code>. 3. Nếu cụm có ít hơn 20 ảnh, <code class="gl" data-g="f15" role="button" tabindex="0">NearestNeighbors(n_neighbors=20)</code> báo lỗi; dùng <code>min(N0, len(Xk))</code>. 4. K-means <strong>không biết</strong> nhãn chữ số: cụm 0 không nhất thiết là chữ số 0. Muốn đếm "tỉ lệ nhãn chiếm đa số" thì với mỗi cụm dùng <code>np.bincount(true_labels[pred_label == k]).argmax()</code>.</p>
+</blockquote>
+<h2 id="d-bai-tap-tu-thuc-hanh">D. Bài tập tự thực hành</h2>
+<ul>
+<li><strong>Bài 1.1.</strong> Áp dụng hàm <code>kmeans</code> tự viết ở ví dụ 1 cho dữ liệu chữ số ở ví dụ 2. Gợi ý: dùng bản k-means++ và xử lý cụm rỗng, vì với 10 cụm trong 784 chiều khởi tạo ngẫu nhiên dễ cho kết quả kém.</li>
+<li><strong>Bài 1.2.</strong> Phân cụm ảnh chó–mèo (phần CNN) thành 2 cụm và kiểm tra kết quả bằng ARI. Phân cụm trực tiếp trên pixel thường cho ARI gần 0 vì khoảng cách pixel phản ánh màu sắc, độ sáng hơn là "chó hay mèo"; nên giảm chiều (PCA) hoặc dùng đặc trưng từ CNN trước.</li>
+</ul>
+</main>
+</div>
+<div id="pop" role="dialog" aria-modal="false" aria-label="Giải thích" hidden><button class="pop-x" type="button" aria-label="Đóng">×</button><div class="pop-body"></div></div>
+
+<script>window.GLOSSARY={"t0": {"k": "t", "p": ["phân cụm", "clustering"], "h": "<div class=\"pop-kind t\">Thuật ngữ<\/div><div class=\"pop-name\"><p>Phân cụm (clustering)<\/p><\/div><section class=\"ps\"><h5>Định nghĩa<\/h5><p>Chia dữ liệu <strong>không có nhãn<\/strong> thành các nhóm sao cho điểm trong cùng nhóm giống nhau hơn điểm khác nhóm. Thuộc học <strong>không giám sát<\/strong>.<\/p>\n<\/section><section class=\"ps\"><h5>Ví dụ<\/h5><p>Nhóm khách hàng theo hành vi mua sắm, nhóm ảnh chữ số viết tay mà không biết chữ số nào.<\/p>\n<\/section>"}, "t1": {"k": "t", "p": ["k-means++"], "h": "<div class=\"pop-kind t\">Thuật ngữ<\/div><div class=\"pop-name\"><p>k-means++<\/p><\/div><section class=\"ps\"><h5>Định nghĩa<\/h5><p>Cách khởi tạo tâm cho K-means: tâm đầu chọn ngẫu nhiên, mỗi tâm sau chọn điểm <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mi>𝐱<\/mi><annotation encoding=\"application/x-tex\">\\mathbf x<\/annotation><\/semantics><\/math><\/span> với xác suất tỉ lệ <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>D<\/mi><msup><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>𝐱<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><mn>2<\/mn><\/msup><\/mrow><annotation encoding=\"application/x-tex\">D(\\mathbf x)^2<\/annotation><\/semantics><\/math><\/span>, trong đó <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>D<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>𝐱<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><\/mrow><annotation encoding=\"application/x-tex\">D(\\mathbf x)<\/annotation><\/semantics><\/math><\/span> là khoảng cách tới tâm gần nhất đã chọn.<\/p>\n<\/section><section class=\"ps\"><h5>Vì sao tốt<\/h5><p>Tâm có xu hướng rơi vào các cụm khác nhau, nhưng không bị một ngoại lệ đơn lẻ kéo đi như cách chọn \"xa nhất\". Kỳ vọng <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mi>J<\/mi><annotation encoding=\"application/x-tex\">J<\/annotation><\/semantics><\/math><\/span> trong khoảng <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>O<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mo>log<\/mo><mi>K<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><\/mrow><annotation encoding=\"application/x-tex\">O(\\log K)<\/annotation><\/semantics><\/math><\/span> lần tối ưu.<\/p>\n<\/section><section class=\"ps\"><h5>Trong sklearn<\/h5><p><code>KMeans(init='k-means++')<\/code> là mặc định.<\/p>\n<\/section>"}, "t2": {"k": "t", "p": ["inertia", "WCSS"], "h": "<div class=\"pop-kind t\">Thuật ngữ<\/div><div class=\"pop-name\"><p>Inertia / WCSS<\/p><\/div><section class=\"ps\"><h5>Định nghĩa<\/h5><p>Tổng bình phương khoảng cách từ mỗi điểm tới tâm cụm của nó: <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>J<\/mi><mo>=<\/mo><msub><mo>∑<\/mo><mi>n<\/mi><\/msub><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">∥<\/mo><msub><mi>𝐱<\/mi><mi>n<\/mi><\/msub><mo>−<\/mo><msub><mi>𝐦<\/mi><mrow><mi>c<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>n<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><\/mrow><\/msub><msup><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">∥<\/mo><mn>2<\/mn><\/msup><\/mrow><annotation encoding=\"application/x-tex\">J = \\sum_n\\lVert\\mathbf x_n - \\mathbf m_{c(n)}\\rVert^2<\/annotation><\/semantics><\/math><\/span>. Đây chính là hàm mất mát K-means cực tiểu hoá.<\/p>\n<\/section><section class=\"ps\"><h5>Trong sklearn<\/h5><p>Thuộc tính <code>inertia_<\/code> của mô hình <code>KMeans<\/code> sau khi <code>fit<\/code>.<\/p>\n<\/section>"}, "t3": {"k": "t", "p": ["cực tiểu cục bộ"], "h": "<div class=\"pop-kind t\">Thuật ngữ<\/div><div class=\"pop-name\"><p>Cực tiểu cục bộ<\/p><\/div><section class=\"ps\"><h5>Định nghĩa<\/h5><p>Điểm mà mọi thay đổi nhỏ đều không làm giảm hàm mất mát, nhưng vẫn có thể có nghiệm khác tốt hơn ở xa.<\/p>\n<\/section><section class=\"ps\"><h5>Với K-means<\/h5><p>Thuật toán dừng khi nhãn không đổi; nghiệm đó có thể có hai tâm chung một cụm thật. Cách khắc phục: k-means++ và chạy nhiều lần (<code>n_init<\/code>) lấy kết quả có <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mi>J<\/mi><annotation encoding=\"application/x-tex\">J<\/annotation><\/semantics><\/math><\/span> nhỏ nhất.<\/p>\n<\/section>"}, "t4": {"k": "t", "p": ["GMM", "mô hình trộn Gaussian"], "h": "<div class=\"pop-kind t\">Thuật ngữ<\/div><div class=\"pop-name\"><p>Gaussian Mixture Model (GMM)<\/p><\/div><section class=\"ps\"><h5>Định nghĩa<\/h5><p>Mô hình xác suất <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>p<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>𝐱<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><mo>=<\/mo><msub><mo>∑<\/mo><mi>c<\/mi><\/msub><msub><mi>π<\/mi><mi>c<\/mi><\/msub><mspace width=\"0.167em\"><\/mspace><mi>𝒩<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>𝐱<\/mi><mo>∣<\/mo><msub><mi>𝛍<\/mi><mi>c<\/mi><\/msub><mo>,<\/mo><msub><mi>Σ<\/mi><mi>c<\/mi><\/msub><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><\/mrow><annotation encoding=\"application/x-tex\">p(\\mathbf x) = \\sum_c \\pi_c\\,\\mathcal N(\\mathbf x\\mid\\boldsymbol\\mu_c,\\Sigma_c)<\/annotation><\/semantics><\/math><\/span>: dữ liệu sinh từ <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mi>C<\/mi><annotation encoding=\"application/x-tex\">C<\/annotation><\/semantics><\/math><\/span> phân phối Gaussian với trọng số <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><msub><mi>π<\/mi><mi>c<\/mi><\/msub><annotation encoding=\"application/x-tex\">\\pi_c<\/annotation><\/semantics><\/math><\/span>.<\/p>\n<\/section><section class=\"ps\"><h5>Liên hệ<\/h5><p>Ước lượng bằng EM, mỗi điểm thuộc các cụm với xác suất (gán mềm). K-means là trường hợp gán cứng.<\/p>\n<\/section>"}, "t5": {"k": "t", "p": ["EM", "Expectation-Maximization"], "h": "<div class=\"pop-kind t\">Thuật ngữ<\/div><div class=\"pop-name\"><p>Thuật toán EM<\/p><\/div><section class=\"ps\"><h5>Định nghĩa<\/h5><p>Lặp hai bước: <strong>E-step<\/strong> ước lượng phân phối biến ẩn (điểm thuộc cụm nào) với tham số hiện tại; <strong>M-step<\/strong> cập nhật tham số để cực đại hoá hợp lý kỳ vọng.<\/p>\n<\/section><section class=\"ps\"><h5>Tính chất<\/h5><p>Mỗi vòng lặp không làm giảm log-likelihood (chứng minh qua KL-divergence trong slide).<\/p>\n<\/section>"}, "t6": {"k": "t", "p": ["silhouette"], "h": "<div class=\"pop-kind t\">Thuật ngữ<\/div><div class=\"pop-name\"><p>Hệ số silhouette<\/p><\/div><section class=\"ps\"><h5>Định nghĩa<\/h5><p><span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>s<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>i<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><mo>=<\/mo><mfrac displaystyle=\"true\"><mrow><mi>b<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>i<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><mo>−<\/mo><mi>a<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>i<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><\/mrow><mrow><mo>max<\/mo><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>a<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>i<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><mo>,<\/mo><mi>b<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>i<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><\/mrow><\/mfrac><\/mrow><annotation encoding=\"application/x-tex\">s(i) = \\dfrac{b(i)-a(i)}{\\max(a(i),b(i))}<\/annotation><\/semantics><\/math><\/span>, với <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>a<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>i<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><\/mrow><annotation encoding=\"application/x-tex\">a(i)<\/annotation><\/semantics><\/math><\/span> là khoảng cách trung bình tới điểm cùng cụm, <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>b<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>i<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><\/mrow><annotation encoding=\"application/x-tex\">b(i)<\/annotation><\/semantics><\/math><\/span> tới cụm gần nhất khác. Giá trị trong <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">[<\/mo><mo>−<\/mo><mn>1<\/mn><mo>,<\/mo><mn>1<\/mn><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">]<\/mo><\/mrow><annotation encoding=\"application/x-tex\">[-1, 1]<\/annotation><\/semantics><\/math><\/span>, càng lớn càng tốt.<\/p>\n<\/section><section class=\"ps\"><h5>Trong sklearn<\/h5><p><code>silhouette_score(X, labels)<\/code> trả về trung bình của <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>s<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>i<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><\/mrow><annotation encoding=\"application/x-tex\">s(i)<\/annotation><\/semantics><\/math><\/span>.<\/p>\n<\/section>"}, "t7": {"k": "t", "p": ["Rand Index", "ARI"], "h": "<div class=\"pop-kind t\">Thuật ngữ<\/div><div class=\"pop-name\"><p>Rand Index và ARI<\/p><\/div><section class=\"ps\"><h5>Định nghĩa<\/h5><p>RI là tỉ lệ cặp điểm được xử lý đúng (cùng nhãn – cùng cụm, khác nhãn – khác cụm). ARI hiệu chỉnh RI theo kỳ vọng khi gán ngẫu nhiên: <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>A<\/mi><mi>R<\/mi><mi>I<\/mi><mo>=<\/mo><mn>1<\/mn><\/mrow><annotation encoding=\"application/x-tex\">ARI = 1<\/annotation><\/semantics><\/math><\/span> khớp hoàn toàn, <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mo>≈<\/mo><mn>0<\/mn><\/mrow><annotation encoding=\"application/x-tex\">\\approx 0<\/annotation><\/semantics><\/math><\/span> như ngẫu nhiên.<\/p>\n<\/section><section class=\"ps\"><h5>Lưu ý<\/h5><p>ARI không phụ thuộc tên nhãn cụm: đổi tên cụm 0 ↔︎ 1 không đổi ARI.<\/p>\n<\/section>"}, "f0": {"k": "f", "h": "<div class=\"pop-kind\">Hàm tự viết trong bài<\/div><div class=\"pop-name\"><code>kmeans_init_centers(X, k)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Chọn ngẫu nhiên <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mi>k<\/mi><annotation encoding=\"application/x-tex\">k<\/annotation><\/semantics><\/math><\/span> hàng khác nhau của <code>X<\/code> làm tâm ban đầu.<\/p>\n<\/section><section class=\"ps\"><h5>Trả về<\/h5><p>Mảng <code>(k, d)<\/code>.<\/p>\n<\/section><section class=\"ps warn\"><h5>Lưu ý<\/h5><p>Không phải k-means++; kết quả phụ thuộc hạt giống ngẫu nhiên.<\/p>\n<\/section>"}, "f1": {"k": "f", "h": "<div class=\"pop-kind\">Hàm tự viết trong bài<\/div><div class=\"pop-name\"><code>kmeans_assign_labels(X, centers)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Bước <strong>gán nhãn<\/strong>: tính khoảng cách mọi điểm tới mọi tâm bằng <code>cdist<\/code>, trả về chỉ số tâm gần nhất.<\/p>\n<\/section><section class=\"ps\"><h5>Trả về<\/h5><p>Mảng nhãn <code>(N,)<\/code> gồm số nguyên <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mn>0<\/mn><mi>.<\/mi><mi>.<\/mi><mi>K<\/mi><mo>−<\/mo><mn>1<\/mn><\/mrow><annotation encoding=\"application/x-tex\">0..K-1<\/annotation><\/semantics><\/math><\/span>.<\/p>\n<\/section>"}, "f2": {"k": "f", "h": "<div class=\"pop-kind\">Hàm tự viết trong bài<\/div><div class=\"pop-name\"><code>kmeans_update_centers(X, labels, K)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Bước <strong>cập nhật tâm<\/strong>: tâm cụm <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mi>k<\/mi><annotation encoding=\"application/x-tex\">k<\/annotation><\/semantics><\/math><\/span> là trung bình các điểm có nhãn <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mi>k<\/mi><annotation encoding=\"application/x-tex\">k<\/annotation><\/semantics><\/math><\/span>, <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><msub><mi>𝐦<\/mi><mi>k<\/mi><\/msub><mo>=<\/mo><mfrac><mn>1<\/mn><msub><mi>N<\/mi><mi>k<\/mi><\/msub><\/mfrac><msub><mo>∑<\/mo><mrow><mi>𝐱<\/mi><mo>∈<\/mo><msub><mi>𝒞<\/mi><mi>k<\/mi><\/msub><\/mrow><\/msub><mi>𝐱<\/mi><\/mrow><annotation encoding=\"application/x-tex\">\\mathbf m_k = \\frac1{N_k}\\sum_{\\mathbf x\\in\\mathcal C_k}\\mathbf x<\/annotation><\/semantics><\/math><\/span>.<\/p>\n<\/section><section class=\"ps warn\"><h5>Lưu ý<\/h5><p>Cụm rỗng cho <code>nan<\/code>.<\/p>\n<\/section>"}, "f3": {"k": "f", "h": "<div class=\"pop-kind\">Hàm tự viết trong bài<\/div><div class=\"pop-name\"><code>has_converged(centers, new_centers)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Trả về <code>True<\/code> nếu tập tâm mới giống hệt tập tâm cũ (so sánh dưới dạng tập các tuple, không phụ thuộc thứ tự).<\/p>\n<\/section>"}, "f4": {"k": "f", "h": "<div class=\"pop-kind\">Hàm tự viết trong bài<\/div><div class=\"pop-name\"><code>kmeans_pp_init(X, k, rng)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Khởi tạo k-means++: mỗi tâm mới được chọn với xác suất <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>D<\/mi><msup><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>𝐱<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><mn>2<\/mn><\/msup><mi>/<\/mi><mo>∑<\/mo><msup><mi>D<\/mi><mn>2<\/mn><\/msup><\/mrow><annotation encoding=\"application/x-tex\">D(\\mathbf x)^2/\\sum D^2<\/annotation><\/semantics><\/math><\/span>.<\/p>\n<\/section>"}, "f5": {"k": "f", "h": "<div class=\"pop-kind\">Hàm tự viết trong bài<\/div><div class=\"pop-name\"><code>kmeans_update_centers_safe(X, labels, K, old)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Như <code>kmeans_update_centers<\/code> nhưng giữ tâm cũ khi cụm rỗng.<\/p>\n<\/section>"}, "f6": {"k": "f", "h": "<div class=\"pop-kind\">scipy.spatial.distance<\/div><div class=\"pop-name\"><code>cdist(XA, XB, metric=&#x27;euclidean&#x27;)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Ma trận khoảng cách giữa <strong>mọi cặp<\/strong> hàng của hai mảng: phần tử <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><mi>i<\/mi><mo>,<\/mo><mi>j<\/mi><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><annotation encoding=\"application/x-tex\">(i, j)<\/annotation><\/semantics><\/math><\/span> là <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">∥<\/mo><mi>X<\/mi><msub><mi>A<\/mi><mi>i<\/mi><\/msub><mo>−<\/mo><mi>X<\/mi><msub><mi>B<\/mi><mi>j<\/mi><\/msub><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">∥<\/mo><\/mrow><annotation encoding=\"application/x-tex\">\\lVert XA_i - XB_j\\rVert<\/annotation><\/semantics><\/math><\/span>.<\/p>\n<\/section><section class=\"ps\"><h5>Tham số<\/h5><p><code>XA<\/code> kích thước <code>(m, d)<\/code>, <code>XB<\/code> kích thước <code>(n, d)<\/code>, <code>metric<\/code> loại khoảng cách.<\/p>\n<\/section><section class=\"ps\"><h5>Trả về<\/h5><p>Mảng <code>(m, n)<\/code>.<\/p>\n<\/section>"}, "f7": {"k": "f", "h": "<div class=\"pop-kind\">numpy<\/div><div class=\"pop-name\"><code>np.argmin(a, axis=None)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Chỉ số của phần tử nhỏ nhất. Với <code>axis=1<\/code>, lấy chỉ số nhỏ nhất trên <strong>từng hàng<\/strong>.<\/p>\n<\/section><section class=\"ps\"><h5>Ví dụ<\/h5><p><code>np.argmin([[3, 1, 2], [0, 5, 4]], axis=1)<\/code> → <code>[1, 0]<\/code>.<\/p>\n<\/section>"}, "f8": {"k": "f", "h": "<div class=\"pop-kind\">numpy<\/div><div class=\"pop-name\"><code>np.random.choice(a, size, replace=True, p=None)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Chọn ngẫu nhiên <code>size<\/code> phần tử từ <code>range(a)<\/code> (nếu <code>a<\/code> là số nguyên). <code>replace=False<\/code>: không lặp lại. <code>p<\/code>: xác suất cho từng phần tử (dùng cho k-means++).<\/p>\n<\/section>"}, "f9": {"k": "f", "h": "<div class=\"pop-kind\">numpy<\/div><div class=\"pop-name\"><code>np.mean(a, axis=None)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Trung bình. <code>axis=0<\/code> lấy trung bình theo cột, tức trung bình các điểm (mỗi hàng là một điểm).<\/p>\n<\/section><section class=\"ps warn\"><h5>Lưu ý<\/h5><p>Mảng rỗng cho <code>nan<\/code> và cảnh báo <code>Mean of empty slice<\/code>.<\/p>\n<\/section>"}, "f10": {"k": "f", "h": "<div class=\"pop-kind\">numpy<\/div><div class=\"pop-name\"><code>np.random.multivariate_normal(mean, cov, size)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Sinh <code>size<\/code> điểm từ phân phối Gaussian nhiều chiều với kỳ vọng <code>mean<\/code> và hiệp phương sai <code>cov<\/code>.<\/p>\n<\/section><section class=\"ps\"><h5>Trả về<\/h5><p>Mảng <code>(size, d)<\/code>.<\/p>\n<\/section>"}, "f11": {"k": "f", "h": "<div class=\"pop-kind\">numpy<\/div><div class=\"pop-name\"><code>np.concatenate((a1, a2, ...), axis=0)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Nối các mảng theo trục <code>axis<\/code>. <code>axis=0<\/code>: chồng theo hàng.<\/p>\n<\/section>"}, "f12": {"k": "f", "h": "<div class=\"pop-kind\">sklearn.cluster<\/div><div class=\"pop-name\"><code>KMeans(n_clusters=8, init=&#x27;k-means++&#x27;, n_init=&#x27;auto&#x27;, random_state=None)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Mô hình K-means. <code>fit(X)<\/code> học tâm; thuộc tính <code>cluster_centers_<\/code> (tâm), <code>labels_<\/code> (nhãn), <code>inertia_<\/code> (<span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mi>J<\/mi><annotation encoding=\"application/x-tex\">J<\/annotation><\/semantics><\/math><\/span>).<\/p>\n<\/section><section class=\"ps\"><h5>Tham số<\/h5><p><code>n_clusters<\/code>: số cụm <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mi>K<\/mi><annotation encoding=\"application/x-tex\">K<\/annotation><\/semantics><\/math><\/span>; <code>init<\/code>: cách khởi tạo; <code>n_init<\/code>: số lần chạy lại, giữ kết quả <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mi>J<\/mi><annotation encoding=\"application/x-tex\">J<\/annotation><\/semantics><\/math><\/span> nhỏ nhất; <code>random_state<\/code>: hạt giống.<\/p>\n<\/section>"}, "f13": {"k": "f", "h": "<div class=\"pop-kind\">sklearn<\/div><div class=\"pop-name\"><code>model.predict(X)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Với <code>KMeans<\/code>: gán mỗi điểm vào tâm gần nhất (chỉ bước gán nhãn, không cập nhật tâm).<\/p>\n<\/section>"}, "f14": {"k": "f", "h": "<div class=\"pop-kind\">sklearn<\/div><div class=\"pop-name\"><code>model.fit(X)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Huấn luyện mô hình trên <code>X<\/code> và trả về chính mô hình (nên viết được <code>KMeans(...).fit(X)<\/code>).<\/p>\n<\/section>"}, "f15": {"k": "f", "h": "<div class=\"pop-kind\">sklearn.neighbors<\/div><div class=\"pop-name\"><code>NearestNeighbors(n_neighbors=5)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Cấu trúc tìm láng giềng gần nhất (tự chọn KD-tree, Ball-tree hoặc brute force). <code>fit(X)<\/code> xây chỉ mục; <code>kneighbors(Q, k)<\/code> trả về <code>(dist, ind)<\/code>.<\/p>\n<\/section>"}, "f16": {"k": "f", "h": "<div class=\"pop-kind\">sklearn.neighbors<\/div><div class=\"pop-name\"><code>kneighbors(X, n_neighbors)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Với mỗi điểm truy vấn, trả về khoảng cách và chỉ số của <code>n_neighbors<\/code> điểm gần nhất trong dữ liệu đã <code>fit<\/code>.<\/p>\n<\/section>"}, "f17": {"k": "f", "h": "<div class=\"pop-kind\">sklearn.metrics<\/div><div class=\"pop-name\"><code>silhouette_score(X, labels)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Hệ số silhouette trung bình, trong <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">[<\/mo><mo>−<\/mo><mn>1<\/mn><mo>,<\/mo><mn>1<\/mn><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">]<\/mo><\/mrow><annotation encoding=\"application/x-tex\">[-1, 1]<\/annotation><\/semantics><\/math><\/span>, càng lớn càng tốt. Chi phí <span class=\"katex\"><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><semantics><mrow><mi>O<\/mi><mrow><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">(<\/mo><msup><mi>N<\/mi><mn>2<\/mn><\/msup><mo lspace=\"0em\" rspace=\"0em\" stretchy=\"false\">)<\/mo><\/mrow><\/mrow><annotation encoding=\"application/x-tex\">O(N^2)<\/annotation><\/semantics><\/math><\/span>.<\/p>\n<\/section>"}, "f18": {"k": "f", "h": "<div class=\"pop-kind\">sklearn.metrics<\/div><div class=\"pop-name\"><code>davies_bouldin_score(X, labels)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Chỉ số Davies–Bouldin, càng nhỏ càng tốt.<\/p>\n<\/section>"}, "f19": {"k": "f", "h": "<div class=\"pop-kind\">sklearn.metrics<\/div><div class=\"pop-name\"><code>adjusted_rand_score(labels_true, labels_pred)<\/code><\/div><section class=\"ps\"><h5>Chức năng<\/h5><p>Adjusted Rand Index giữa nhãn thật và nhãn cụm. 1 là khớp hoàn toàn, 0 là như ngẫu nhiên.<\/p>\n<\/section>"}};</script>
+<script>(function () {
+  var G = window.GLOSSARY || {};
+  var root = document.documentElement;
+
+  // ---------- theme toggle ----------
+  try { var saved = localStorage.getItem('ml-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  document.querySelector('.theme').addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark'
+      : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('ml-theme', next); } catch (e) {}
+    document.dispatchEvent(new Event('themechange'));
+  });
+
+  // ---------- wrap terms in prose (first occurrence per h2 section) ----------
+  var terms = [];
+  Object.keys(G).forEach(function (id) {
+    var e = G[id];
+    if (e.k === 't') (e.p || []).forEach(function (p) { terms.push({ id: id, p: p }); });
+  });
+  terms.sort(function (a, b) { return b.p.length - a.p.length; });
+  var escRe = function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+  if (terms.length) {
+    var big = new RegExp('(?<![\\p{L}\\p{N}])(' + terms.map(function (t) { return escRe(t.p); }).join('|') + ')(?![\\p{L}\\p{N}])', 'giu');
+    var byLower = {}; terms.forEach(function (t) { byLower[t.p.toLowerCase()] = t.id; });
+    var content = document.querySelector('.content');
+    var stopAt = Array.prototype.find.call(content.querySelectorAll('h1.part'), function (h) { return /^phan-3/.test(h.id); });
+    var seen = {}; var section = 'top';
+    var walker = document.createTreeWalker(content, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        if (n.nodeType === 1) {
+          if (/^(PRE|CODE|MATH|SCRIPT|BUTTON|H1|H3|H4|SUMMARY)$/.test(n.tagName) || n.classList.contains('sim') || n.classList.contains('gl')) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_SKIP;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var nodes = []; var n; var stopped = false;
+    // collect text nodes together with their h2 section
+    var all = content.querySelectorAll('h2, h1.part');
+    var marks = Array.prototype.slice.call(all);
+    while ((n = walker.nextNode())) {
+      if (stopAt && (stopAt.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING)) break;
+      if (n.parentNode.closest && n.parentNode.closest('h2')) continue;
+      nodes.push(n);
+    }
+    var secOf = function (node) {
+      var s = 'top';
+      for (var i = 0; i < marks.length; i++) {
+        if (marks[i].compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING) s = marks[i].id; else break;
+      }
+      return s;
+    };
+    nodes.forEach(function (tn) {
+      var text = tn.nodeValue; big.lastIndex = 0;
+      if (!big.test(text)) return;
+      var sec = secOf(tn); big.lastIndex = 0;
+      var frag = document.createDocumentFragment(); var last = 0; var m; var changed = false;
+      while ((m = big.exec(text))) {
+        var id = byLower[m[1].toLowerCase()];
+        var key = sec + '|' + id;
+        if (seen[key]) continue;
+        seen[key] = 1; changed = true;
+        frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        var sp = document.createElement('span');
+        sp.className = 'term'; sp.setAttribute('role', 'button'); sp.tabIndex = 0; sp.dataset.g = id; sp.textContent = m[1];
+        frag.appendChild(sp); last = m.index + m[1].length;
+      }
+      if (!changed) return;
+      frag.appendChild(document.createTextNode(text.slice(last)));
+      tn.parentNode.replaceChild(frag, tn);
+    });
+  }
+
+  // ---------- popup ----------
+  var pop = document.getElementById('pop');
+  var body = pop.querySelector('.pop-body');
+  var current = null;
+  function place(el) {
+    if (window.matchMedia('(max-width: 640px)').matches) { pop.style.left = ''; pop.style.top = ''; return; }
+    var r = el.getBoundingClientRect();
+    var pw = pop.offsetWidth, ph = pop.offsetHeight;
+    var x = Math.min(Math.max(8, r.left + window.scrollX), window.scrollX + document.documentElement.clientWidth - pw - 12);
+    var vh = window.innerHeight, y;
+    if (r.bottom + 8 + ph <= vh - 8) y = r.bottom + 8;          // fits below
+    else if (r.top - 8 - ph >= 8) y = r.top - 8 - ph;            // fits above
+    else y = Math.max(8, vh - ph - 8);                           // otherwise keep fully visible
+    y += window.scrollY;
+    pop.style.left = x + 'px'; pop.style.top = y + 'px';
+  }
+  function show(el, keepPlace) {
+    var e = G[el.dataset.g]; if (!e) return;
+    if (!keepPlace && current === el && !pop.hidden) { hide(); return; }
+    if (!keepPlace) current = el;
+    body.innerHTML = e.h;
+    pop.hidden = false; pop.scrollTop = 0;
+    if (!keepPlace) place(el);
+  }
+  function hide() { pop.hidden = true; if (current) { try { current.focus({ preventScroll: true }); } catch (e) {} } current = null; }
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest('.gl, .term, .term-link');
+    if (t) { ev.preventDefault(); show(t, pop.contains(t)); return; }
+    if (!pop.hidden && !pop.contains(ev.target)) hide();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape' && !pop.hidden) hide();
+    if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('.gl, .term, .term-link')) { ev.preventDefault(); show(ev.target, pop.contains(ev.target)); }
+  });
+  pop.querySelector('.pop-x').addEventListener('click', hide);
+  window.addEventListener('resize', function () { if (!pop.hidden) pop.hidden = true; });
+
+  // ---------- copy buttons ----------
+  document.querySelectorAll('.code .copy').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var text = b.closest('.code').querySelector('code').innerText;
+      var done = function () { b.textContent = 'Đã chép ✓'; setTimeout(function () { b.textContent = 'Sao chép'; }, 1400); };
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+      function fallback() {
+        var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) {} ta.remove();
+      }
+    });
+  });
+
+  // ---------- toc scrollspy ----------
+  var links = {}; document.querySelectorAll('.toc a').forEach(function (a) { links[a.getAttribute('href').slice(1)] = a; });
+  var heads = Array.prototype.filter.call(document.querySelectorAll('.content h1.part, .content h2'), function (h) { return links[h.id]; });
+  var onScroll = function () {
+    var y = window.scrollY + 120, cur = null;
+    for (var i = 0; i < heads.length; i++) { if (heads[i].offsetTop <= y) cur = heads[i]; else break; }
+    Object.keys(links).forEach(function (k) { links[k].classList.toggle('on', cur && cur.id === k); });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
+  if (window.matchMedia('(max-width: 980px)').matches) document.querySelector('.toc-wrap').removeAttribute('open');
+})();
+</script>
+
+<script>window.SIMS = window.SIMS || {};
+window.SimCore = (function () {
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function rng(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function gauss(r) { var u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); }
+  function h(html) { var d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
+  function fmt(v, n) { if (!isFinite(v)) return '—'; return (Math.round(v * Math.pow(10, n)) / Math.pow(10, n)).toFixed(n); }
+
+  // Responsive HiDPI canvas. draw(ctx, w, h) is called whenever size/theme changes or redraw() is invoked.
+  function canvas(host, aspect, draw, opts) {
+    opts = opts || {};
+    var cv = document.createElement('canvas');
+    cv.setAttribute('role', 'img');
+    if (opts.label) cv.setAttribute('aria-label', opts.label);
+    host.appendChild(cv);
+    var ctx = cv.getContext('2d'); var w = 0, hh = 0;
+    function resize() {
+      var cw = host.clientWidth; if (!cw) return;
+      w = cw; hh = Math.round(Math.max(opts.minH || 240, Math.min(opts.maxH || 480, cw * aspect)));
+      var dpr = window.devicePixelRatio || 1;
+      cv.width = Math.round(w * dpr); cv.height = Math.round(hh * dpr);
+      cv.style.height = hh + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      redraw();
+    }
+    function redraw() { if (w) { ctx.clearRect(0, 0, w, hh); draw(ctx, w, hh); } }
+    if (window.ResizeObserver) new ResizeObserver(resize).observe(host); else window.addEventListener('resize', resize);
+    document.addEventListener('themechange', redraw);
+    if (window.matchMedia) {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      if (mq.addEventListener) mq.addEventListener('change', redraw);
+    }
+    resize();
+    return { cv: cv, ctx: ctx, redraw: redraw, size: function () { return { w: w, h: hh }; } };
+  }
+
+  // Pointer helper: handlers.down(x,y,ev) returns true to start a drag; move(x,y); up()
+  function pointer(cv, handlers) {
+    var dragging = false;
+    function pos(ev) { var r = cv.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; }
+    cv.addEventListener('pointerdown', function (ev) {
+      var p = pos(ev);
+      if (handlers.down && handlers.down(p[0], p[1], ev)) { dragging = true; try { cv.setPointerCapture(ev.pointerId); } catch (e) {} ev.preventDefault(); }
+    });
+    cv.addEventListener('pointermove', function (ev) {
+      var p = pos(ev);
+      if (dragging) { handlers.move && handlers.move(p[0], p[1], ev); ev.preventDefault(); }
+      else if (handlers.hover) handlers.hover(p[0], p[1], ev);
+    });
+    function end() { if (dragging) { dragging = false; handlers.up && handlers.up(); } }
+    cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+  }
+
+  function star(ctx, x, y, r) {
+    ctx.beginPath();
+    for (var i = 0; i < 10; i++) {
+      var a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r;
+      ctx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a));
+    }
+    ctx.closePath();
+  }
+  function marker(ctx, shape, x, y, r) {
+    ctx.beginPath();
+    if (shape === 'tri') { ctx.moveTo(x, y - r * 1.15); ctx.lineTo(x + r, y + r * 0.75); ctx.lineTo(x - r, y + r * 0.75); ctx.closePath(); }
+    else if (shape === 'sq') { ctx.rect(x - r * 0.85, y - r * 0.85, r * 1.7, r * 1.7); }
+    else ctx.arc(x, y, r, 0, Math.PI * 2);
+  }
+  function alpha(color, a) {
+    // supports #rrggbb
+    var m = color.match(/^#([0-9a-f]{6})$/i); if (!m) return color;
+    var n = parseInt(m[1], 16);
+    return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  function boot() {
+    document.querySelectorAll('.sim[data-sim]').forEach(function (host) {
+      var f = window.SIMS[host.dataset.sim];
+      if (f) { try { f(host); } catch (e) { host.textContent = 'Không chạy được mô phỏng: ' + e.message; } }
+    });
+  }
+  return { css: css, rng: rng, gauss: gauss, h: h, fmt: fmt, canvas: canvas, pointer: pointer, star: star, marker: marker, alpha: alpha, boot: boot };
+})();
+
+// Generic step-by-step "algorithm flow" player shared by every lesson.
+// FlowPlayer(host, { phases:[{id,label}], build(opts)->steps[], render(step, ctx), options:[{key,label,values:[[v,text]],value}], code:[lines], intro })
+// Each step: { ph: phaseId, dur: ms, cap: html, line: [codeLineIndexes], ...custom }
+window.FlowPlayer = function (host, cfg) {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  host.classList.add('flow');
+  host.innerHTML =
+    '<ol class="flow-steps"></ol>' +
+    '<div class="flow-stage"></div>' +
+    '<div class="flow-cap" aria-live="polite"></div>' +
+    '<div class="flow-extra"></div>' +
+    '<div class="flow-code"><pre><code></code></pre></div>' +
+    '<div class="flow-ctl">' +
+    '<button type="button" class="b-first" title="Về đầu" aria-label="Về đầu">⏮</button>' +
+    '<button type="button" class="b-prev" title="Bước trước" aria-label="Bước trước">◀</button>' +
+    '<button type="button" class="b-play primary">▶ Chạy</button>' +
+    '<button type="button" class="b-next" title="Bước sau" aria-label="Bước sau">▶</button>' +
+    '<label class="speed">Tốc độ <select><option value="1.6">chậm</option><option value="1" selected>vừa</option><option value="0.55">nhanh</option></select></label>' +
+    '<span class="opts"></span>' +
+    '<span class="flow-prog"><span></span></span></div>';
+  var $ = function (s) { return host.querySelector(s); };
+  var stepsEl = $('.flow-steps'), cap = $('.flow-cap'), codeEl = $('.flow-code code'), prog = $('.flow-prog span');
+  var ctx = { stage: $('.flow-stage'), extra: $('.flow-extra'), host: host, reduce: reduce };
+  var opts = {}, steps = [], i = 0, timer = null, playing = false, speed = 1;
+
+  cfg.phases.forEach(function (p, k) {
+    var li = document.createElement('li'); li.dataset.ph = p.id;
+    li.innerHTML = '<button type="button"><span class="n">' + (p.n || (k + 1)) + '</span>' + p.label + '</button>';
+    li.querySelector('button').addEventListener('click', function () { stop(); var j = steps.findIndex(function (s) { return s.ph === p.id; }); if (j >= 0) go(j); });
+    stepsEl.appendChild(li);
+  });
+  function esc(t) { return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function hl(line) { var m = line.match(/^(.*?)(\s#.*)?$/); return esc(m[1]) + (m[2] ? '<span class="c-com">' + esc(m[2]) + '</span>' : ''); }
+  function renderCode() {
+    var lines = typeof cfg.code === 'function' ? cfg.code(opts) : cfg.code;
+    codeEl.innerHTML = lines.map(function (l, k) { return '<span class="ln" data-l="' + k + '">' + hl(l) + '</span>'; }).join('\n');
+  }
+  (cfg.options || []).forEach(function (o) {
+    opts[o.key] = o.value;
+    var lab = document.createElement('label');
+    lab.innerHTML = o.label + ' <select>' + o.values.map(function (v) { return '<option value="' + v[0] + '"' + (String(v[0]) === String(o.value) ? ' selected' : '') + '>' + v[1] + '</option>'; }).join('') + '</select>';
+    lab.querySelector('select').addEventListener('change', function (e) { opts[o.key] = isNaN(+e.target.value) ? e.target.value : +e.target.value; rebuild(); });
+    $('.opts').appendChild(lab);
+  });
+  $('.speed select').addEventListener('change', function (e) { speed = +e.target.value; });
+  $('.b-play').addEventListener('click', function () { playing ? stop() : play(); });
+  $('.b-next').addEventListener('click', function () { stop(); go(Math.min(steps.length - 1, i + 1)); });
+  $('.b-prev').addEventListener('click', function () { stop(); go(Math.max(0, i - 1)); });
+  $('.b-first').addEventListener('click', function () { stop(); go(0); });
+
+  function go(k) {
+    i = k; var s = steps[i];
+    cap.innerHTML = s.cap || '';
+    codeEl.querySelectorAll('.ln').forEach(function (el) { el.classList.toggle('on', (s.line || []).indexOf(+el.dataset.l) >= 0); });
+    var phIdx = cfg.phases.findIndex(function (p) { return p.id === s.ph; });
+    stepsEl.querySelectorAll('li').forEach(function (li, k2) { li.classList.toggle('on', k2 === phIdx); li.classList.toggle('done', k2 < phIdx); });
+    prog.style.width = (100 * i / Math.max(1, steps.length - 1)) + '%';
+    cfg.render(s, ctx, opts);
+    if (i === steps.length - 1) stop(true);
+  }
+  function tick() {
+    if (!playing) return;
+    if (i >= steps.length - 1) { stop(true); return; }
+    go(i + 1);
+    timer = setTimeout(tick, (steps[i].dur || 1400) * speed);
+  }
+  function play() {
+    if (i >= steps.length - 1) go(0);
+    playing = true; $('.b-play').textContent = '⏸ Dừng';
+    timer = setTimeout(tick, (steps[i].dur || 900) * speed * 0.6);
+  }
+  function stop(ended) {
+    playing = false; clearTimeout(timer);
+    $('.b-play').textContent = ended && i >= steps.length - 1 ? '↻ Chạy lại' : '▶ Chạy';
+  }
+  function rebuild() { stop(); renderCode(); steps = cfg.build(opts, ctx); go(0); }
+  if (cfg.setup) cfg.setup(ctx, opts);
+  rebuild();
+};
+
+// FLIP reorder helper: moves `els` (already in container) into `order` with a slide animation
+window.flipOrder = function (container, order, reduce) {
+  var first = new Map();
+  order.forEach(function (el) { first.set(el, el.getBoundingClientRect()); });
+  order.forEach(function (el) { container.appendChild(el); });
+  if (reduce) return;
+  order.forEach(function (el) {
+    var a = first.get(el), b = el.getBoundingClientRect();
+    var dx = a.left - b.left, dy = a.top - b.top;
+    if (!dx && !dy) return;
+    el.style.transition = 'none';
+    el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+    el.getBoundingClientRect();
+    el.style.transition = 'transform .6s cubic-bezier(.2,.7,.2,1)';
+    el.style.transform = '';
+  });
+};
+
+(function () {
+  var S = window.SimCore, css = S.css, fmt = S.fmt;
+  var NS = 'http://www.w3.org/2000/svg';
+  // vẽ lại luồng khi đổi giao diện sáng/tối (các hình dùng màu đọc từ biến CSS)
+  if (!window.FlowPlayer.__themed) {
+    var FP0 = window.FlowPlayer;
+    window.FlowPlayer = function (host, cfg) {
+      var r = cfg.render, last = null;
+      cfg.render = function (s, ctx, o) { last = [s, ctx, o]; return r(s, ctx, o); };
+      var again = function () { if (last) r(last[0], last[1], last[2]); };
+      document.addEventListener('themechange', again);
+      var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+      if (mq && mq.addEventListener) mq.addEventListener('change', again);
+      return FP0(host, cfg);
+    };
+    window.FlowPlayer.__themed = true;
+  }
+  function el(tag, attrs, parent) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function COL(k) { return ['--b', '--a', '--c', '--q'][k] ? css(['--b', '--a', '--c', '--q'][k]) : ['#9a5cd0', '#1aa3b5', '#c2559a', '#6b7a1f'][(k - 4) % 4]; }
+  var MARK = ['circ', 'tri', 'sq', 'circ', 'tri', 'sq', 'circ', 'tri'];
+
+  // ---------- data ----------
+  function blobs(seed, centers, n, sd) {
+    var r = S.rng(seed), P = [];
+    centers.forEach(function (c, k) {
+      for (var i = 0; i < n; i++) P.push({ x: [c[0] + sd * S.gauss(r), c[1] + sd * S.gauss(r)], t: k });
+    });
+    return P;
+  }
+  function d2(a, b) { var s = 0; for (var j = 0; j < a.length; j++) { var t = a[j] - b[j]; s += t * t; } return s; }
+  function assign(P, C) { return P.map(function (p) { var b = 0, bd = Infinity; C.forEach(function (c, k) { var d = d2(p.x, c); if (d < bd) { bd = d; b = k; } }); return b; }); }
+  function update(P, L, C) {
+    return C.map(function (c, k) {
+      var s = [0, 0], n = 0;
+      P.forEach(function (p, i) { if (L[i] === k) { s[0] += p.x[0]; s[1] += p.x[1]; n++; } });
+      return n ? [s[0] / n, s[1] / n] : c.slice();
+    });
+  }
+  function cost(P, L, C) { var s = 0; P.forEach(function (p, i) { s += d2(p.x, C[L[i]]); }); return s; }
+  function initRand(P, K, r) {
+    var idx = [], C = [];
+    while (idx.length < K) { var i = Math.floor(r() * P.length); if (idx.indexOf(i) < 0) idx.push(i); }
+    idx.forEach(function (i) { C.push(P[i].x.slice()); }); return { C: C, idx: idx };
+  }
+  function initFar(P, K, r) {
+    var idx = [Math.floor(r() * P.length)];
+    while (idx.length < K) {
+      var best = -1, bv = -1;
+      P.forEach(function (p, i) { if (idx.indexOf(i) >= 0) return; var v = 0; idx.forEach(function (j) { v += Math.sqrt(d2(p.x, P[j].x)); }); if (v > bv) { bv = v; best = i; } });
+      idx.push(best);
+    }
+    return { C: idx.map(function (i) { return P[i].x.slice(); }), idx: idx };
+  }
+  function ppProbs(P, C) {
+    var D = P.map(function (p) { var m = Infinity; C.forEach(function (c) { m = Math.min(m, d2(p.x, c)); }); return m; });
+    var s = D.reduce(function (a, b) { return a + b; }, 0) || 1;
+    return D.map(function (v) { return v / s; });
+  }
+  function pick(prob, r) { var u = r(), a = 0; for (var i = 0; i < prob.length; i++) { a += prob[i]; if (u <= a) return i; } return prob.length - 1; }
+  function initPP(P, K, r) {
+    var idx = [Math.floor(r() * P.length)];
+    while (idx.length < K) idx.push(pick(ppProbs(P, idx.map(function (i) { return P[i].x; })), r));
+    return { C: idx.map(function (i) { return P[i].x.slice(); }), idx: idx };
+  }
+  function lloyd(P, C) {
+    var L = assign(P, C), it = 0;
+    while (it < 100) { var C2 = update(P, L, C), L2 = assign(P, C2); it++; C = C2; var same = L2.every(function (v, i) { return v === L[i]; }); L = L2; if (same) break; }
+    return { C: C, L: L, J: cost(P, L, C), it: it };
+  }
+  function silhouette(P, L, K) {
+    if (K < 2) return NaN;
+    var n = P.length, tot = 0;
+    for (var i = 0; i < n; i++) {
+      var sum = new Array(K).fill(0), cnt = new Array(K).fill(0);
+      for (var j = 0; j < n; j++) { if (i === j) continue; sum[L[j]] += Math.sqrt(d2(P[i].x, P[j].x)); cnt[L[j]]++; }
+      var a = cnt[L[i]] ? sum[L[i]] / cnt[L[i]] : 0, b = Infinity;
+      for (var k = 0; k < K; k++) if (k !== L[i] && cnt[k]) b = Math.min(b, sum[k] / cnt[k]);
+      tot += cnt[L[i]] ? (b - a) / Math.max(a, b) : 0;
+    }
+    return tot / n;
+  }
+  function starPts(x, y, r) { var s = []; for (var i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; s.push((x + rr * Math.cos(a)).toFixed(1) + ',' + (y + rr * Math.sin(a)).toFixed(1)); } return s.join(' '); }
+
+  var FLOWDATA = blobs(11, [[2, 2], [8, 3], [3, 6]], 40, 1);
+
+  // =====================================================================
+  // 0) Luồng K-means
+  // =====================================================================
+  window.SIMS['km-flow'] = function (host) {
+    var W = 800, H = 380, L0 = 46, R0 = 16, T0 = 14, B0 = 34, XR = [-1.5, 11.5], YR = [-1.5, 9.5];
+    var X = function (x) { return L0 + (x - XR[0]) / (XR[1] - XR[0]) * (W - L0 - R0); };
+    var Y = function (y) { return H - B0 - (y - YR[0]) / (YR[1] - YR[0]) * (H - T0 - B0); };
+    FlowPlayer(host, {
+      phases: [{ id: 'i', n: 'i', label: 'Khởi tạo tâm' }, { id: 'ii', n: 'ii', label: 'Gán nhãn' }, { id: 'iii', n: 'iii', label: 'Cập nhật tâm' }, { id: 'iv', n: 'iv', label: 'Kiểm tra hội tụ' }, { id: 'v', n: 'v', label: 'Kết quả' }],
+      options: [
+        { key: 'init', label: 'Khởi tạo', value: 'rand', values: [['rand', 'ngẫu nhiên (code đề)'], ['far', 'xa nhau nhất (slide)'], ['pp', 'k-means++']] },
+        { key: 'K', label: 'K', value: 3, values: [[2, '2'], [3, '3'], [4, '4'], [5, '5']] },
+        { key: 'seed', label: 'Hạt giống', value: 4, values: [[1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']] }
+      ],
+      code: function (o) {
+        return [
+          o.init === 'pp' ? 'centers = kmeans_pp_init(X, K)            # (i) k-means++' : o.init === 'far' ? 'centers = farthest_init(X, K)             # (i) theo slide' : 'centers = kmeans_init_centers(X, K)       # (i) ngẫu nhiên',
+          'while True:',
+          '    labels = kmeans_assign_labels(X, centers)       # (ii)',
+          '    new_centers = kmeans_update_centers(X, labels, K)  # (iii)',
+          '    if has_converged(centers, new_centers):     # (iv)',
+          '        break',
+          '    centers = new_centers',
+          'return centers, labels                          # (v)'
+        ];
+      },
+      setup: function (ctx) {
+        ctx.svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'flow-svg', role: 'img', 'aria-label': 'Dữ liệu, tâm cụm và nhãn K-means' }, ctx.stage);
+        ctx.extra.innerHTML = '<div class="lr-sums km-sums"></div>'; ctx.sums = ctx.extra.querySelector('.km-sums');
+      },
+      build: function (o) {
+        var P = FLOWDATA, K = o.K, r = S.rng(o.seed * 101 + 7), st = [];
+        var base = { P: P, K: K };
+        var add = function (s) { st.push(Object.assign({}, base, s)); };
+        var ini, C;
+        if (o.init === 'rand') {
+          ini = initRand(P, K, r); C = ini.C;
+          add({ ph: 'i', C: C, L: null, line: [0], dur: 2600, cap: '<b>(i)</b> Chọn ngẫu nhiên ' + K + ' điểm dữ liệu làm tâm (ngôi sao). Chưa điểm nào có nhãn (màu xám).' });
+        } else {
+          var idx = [Math.floor(r() * P.length)];
+          add({ ph: 'i', C: [P[idx[0]].x.slice()], L: null, line: [0], dur: 2200, cap: '<b>(i)</b> Tâm thứ nhất chọn ngẫu nhiên.' + (o.init === 'pp' ? ' Các tâm sau: điểm càng xa các tâm đã có (vòng tròn càng to) thì xác suất được chọn càng lớn, tỉ lệ với D(x)².' : ' Các tâm sau: điểm có tổng khoảng cách tới các tâm đã chọn lớn nhất.') });
+          while (idx.length < K) {
+            var Cs = idx.map(function (i) { return P[i].x; }), prob = o.init === 'pp' ? ppProbs(P, Cs) : null, nxt;
+            if (o.init === 'pp') nxt = pick(prob, r);
+            else { nxt = -1; var bv = -1; P.forEach(function (p, i) { if (idx.indexOf(i) >= 0) return; var v = 0; Cs.forEach(function (c) { v += Math.sqrt(d2(p.x, c)); }); if (v > bv) { bv = v; nxt = i; } }); }
+            idx.push(nxt);
+            add({ ph: 'i', C: idx.map(function (i) { return P[i].x.slice(); }), prob: prob, L: null, line: [0], dur: 2400, cap: '<b>(i)</b> Tâm thứ ' + idx.length + ': điểm (' + fmt(P[nxt].x[0], 2) + ', ' + fmt(P[nxt].x[1], 2) + ')' + (prob ? ', được chọn với xác suất ' + fmt(100 * prob[nxt], 1) + '%.' : ', xa các tâm trước nhất.') });
+          }
+          C = idx.map(function (i) { return P[i].x.slice(); });
+        }
+        var Lprev = null, it = 0;
+        while (it < 30) {
+          it++;
+          var Lb = assign(P, C), changed = Lprev ? Lb.filter(function (v, i) { return v !== Lprev[i]; }).length : P.length;
+          add({ ph: 'ii', C: C, L: Lb, it: it, J: cost(P, Lb, C), line: [2], dur: 2200, cap: '<b>(ii)</b> Vòng ' + it + ': mỗi điểm nhận màu của tâm gần nhất' + (Lprev ? ' (' + changed + ' điểm đổi cụm).' : '.') + ' J = ' + fmt(cost(P, Lb, C), 1) + '.' });
+          var C2 = update(P, Lb, C), moved = Math.max.apply(null, C2.map(function (c, k) { return Math.sqrt(d2(c, C[k])); }));
+          add({ ph: 'iii', C: C2, Cold: C, L: Lb, it: it, J: cost(P, Lb, C2), line: [3], dur: 2400, cap: '<b>(iii)</b> Mỗi tâm dời tới trung bình các điểm cùng màu (mũi tên). J giảm xuống ' + fmt(cost(P, Lb, C2), 1) + '. Tâm dịch xa nhất ' + fmt(moved, 3) + '.' });
+          var conv = moved < 1e-9;
+          add({ ph: 'iv', C: C2, L: Lb, it: it, J: cost(P, Lb, C2), line: conv ? [4, 5] : [4, 6], dur: conv ? 2000 : 1300, cap: conv ? '<b>(iv)</b> Tâm không đổi so với vòng trước: <b>hội tụ</b>, dừng.' : '<b>(iv)</b> Tâm còn thay đổi, quay lại bước (ii).' });
+          Lprev = Lb; C = C2;
+          if (conv) break;
+        }
+        var J = cost(P, Lprev, C), best = lloyd(P, initFar(P, K, S.rng(1)).C).J;
+        var bestOf = Infinity; for (var t = 0; t < 20; t++) bestOf = Math.min(bestOf, lloyd(P, initPP(P, K, S.rng(500 + t)).C).J);
+        add({ ph: 'v', fin: true, C: C, L: Lprev, it: it, J: J, line: [7], dur: 4000, cap: '<b>(v)</b> Sau ' + it + ' vòng: J = ' + fmt(J, 1) + '. Tốt nhất trong 20 lần chạy k-means++ là J = ' + fmt(Math.min(best, bestOf), 1) + (J > Math.min(best, bestOf) * 1.02 ? '. Lần chạy này dừng ở <b>cực tiểu cục bộ</b> kém hơn: thử khởi tạo khác.' : ', nên lần chạy này đã đạt nghiệm tốt.') });
+        return st;
+      },
+      render: function (s, ctx) {
+        var svg = ctx.svg; while (svg.firstChild) svg.removeChild(svg.firstChild);
+        for (var gx = 0; gx <= 10; gx += 2) { el('line', { x1: X(gx), x2: X(gx), y1: T0, y2: H - B0, class: 'lr-grid' }, svg); el('text', { x: X(gx), y: H - 12, class: 'fl-tick' }, svg).textContent = gx; }
+        for (var gy = 0; gy <= 8; gy += 2) { el('line', { x1: L0, x2: W - R0, y1: Y(gy), y2: Y(gy), class: 'lr-grid' }, svg); el('text', { x: L0 - 14, y: Y(gy) + 4, class: 'fl-tick' }, svg).textContent = gy; }
+        var gray = css('--line');
+        s.P.forEach(function (p, i) {
+          var c = s.L ? COL(s.L[i]) : gray, rr = 4.2;
+          if (s.prob) rr = 2.5 + 26 * Math.sqrt(s.prob[i]);
+          el('circle', { cx: X(p.x[0]), cy: Y(p.x[1]), r: rr.toFixed(2), fill: c, 'fill-opacity': s.prob ? 0.35 : 0.85, stroke: s.prob ? c : css('--surface2'), 'stroke-width': 1 }, svg);
+        });
+        if (s.Cold) s.C.forEach(function (c, k) {
+          var a = s.Cold[k];
+          el('circle', { cx: X(a[0]), cy: Y(a[1]), r: 9, fill: 'none', stroke: COL(k), 'stroke-width': 2, 'stroke-dasharray': '4 3' }, svg);
+          el('line', { x1: X(a[0]), y1: Y(a[1]), x2: X(c[0]), y2: Y(c[1]), stroke: css('--ink'), 'stroke-width': 2, 'marker-end': 'url(#km-arr)' }, svg);
+        });
+        var defs = el('defs', {}, svg), mk = el('marker', { id: 'km-arr', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+        el('path', { d: 'M0,0 L10,5 L0,10 z', fill: css('--ink') }, mk);
+        s.C.forEach(function (c, k) { el('polygon', { points: starPts(X(c[0]), Y(c[1]), 13), fill: s.L || s.fin ? COL(k) : css('--q'), stroke: css('--ink'), 'stroke-width': 1.8 }, svg); });
+        var n = s.L ? s.C.map(function (_, k) { return s.L.filter(function (v) { return v === k; }).length; }) : null;
+        ctx.sums.innerHTML = '<span>vòng = ' + (s.it || 0) + '</span><span>J = ' + (s.J != null ? fmt(s.J, 2) : '—') + '</span>' +
+          (n ? '<span>số điểm mỗi cụm: ' + n.map(function (v, k) { return '<b style="color:' + COL(k) + '">' + v + '</b>'; }).join(' · ') + '</span>' : '');
+      }
+    });
+  };
+
+  // =====================================================================
+  // 1) Khởi tạo: k-means++ từng bước + so sánh 200 lần chạy
+  // =====================================================================
+  window.SIMS['km-init'] = function (host) {
+    host.innerHTML = '<div class="ctl"><label>K = <input type="range" min="2" max="8" value="5" class="k"><span class="num kv">5</span></label>' +
+      '<button type="button" class="pp1">Chọn tâm tiếp theo (k-means++)</button><button type="button" class="run">Chạy Lloyd</button><button type="button" class="rst">Làm lại</button><button type="button" class="nd">Dữ liệu mới</button></div><div class="cv"></div>' +
+      '<div class="ctl"><button type="button" class="cmp">So sánh 3 cách khởi tạo (200 lần chạy)</button></div><div class="out"></div>';
+    var $ = function (q) { return host.querySelector(q); };
+    var seed = 3, P, st;
+    function data() {
+      var r = S.rng(seed), cs = [[1.5, 1.5], [6, 1.2], [9.5, 4], [2.5, 7], [7, 8]], sizes = [60, 35, 45, 30, 50], Q = [];
+      cs.forEach(function (c, k) { var sd = 0.55 + 0.35 * r(); for (var i = 0; i < sizes[k]; i++) Q.push({ x: [c[0] + sd * S.gauss(r), c[1] + sd * S.gauss(r)], t: k }); });
+      [[12, 10], [-1, 10], [12, -1], [-1, -1], [5.2, 10.2], [12.2, 6.2]].forEach(function (o) { Q.push({ x: o, t: -1 }); });
+      return Q;
+    }
+    function reset() { P = data(); st = { C: [], L: null, prob: null, r: S.rng(seed * 7 + 1), J: null }; $('.out').innerHTML = ''; status(); }
+    var XR = [-1.8, 12.8], YR = [-1.8, 11];
+    function geo(w, h) { var sx = (w - 20) / (XR[1] - XR[0]), sy = (h - 20) / (YR[1] - YR[0]); return function (x, y) { return [10 + (x - XR[0]) * sx, h - 10 - (y - YR[0]) * sy]; }; }
+    var view = S.canvas($('.cv'), 0.62, function (ctx, w, h) {
+      if (!P) return;
+      var G = geo(w, h), K = +$('.k').value;
+      P.forEach(function (p, i) {
+        var q = G(p.x[0], p.x[1]), c = st.L ? COL(st.L[i]) : css('--line'), rr = 3.6;
+        if (st.prob && !st.L) rr = 2.4 + 30 * Math.sqrt(st.prob[i]);
+        ctx.beginPath(); ctx.arc(q[0], q[1], rr, 0, 7); ctx.fillStyle = S.alpha(c.length === 7 ? c : '#888888', st.prob && !st.L ? 0.4 : 0.85); ctx.fill();
+        if (st.prob && !st.L) { ctx.strokeStyle = c; ctx.lineWidth = 1; ctx.stroke(); }
+      });
+      st.C.forEach(function (c, k) { var q = G(c[0], c[1]); S.star(ctx, q[0], q[1], 13); ctx.fillStyle = st.L ? COL(k) : css('--q'); ctx.fill(); ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1.8; ctx.stroke(); });
+    }, { label: 'Dữ liệu 5 cụm và các tâm khởi tạo', maxH: 440 });
+    function status() {
+      var K = +$('.k').value;
+      $('.pp1').disabled = st.C.length >= K || !!st.L; $('.run').disabled = st.C.length < K || !!st.L;
+      var msg = st.L ? '<b>Kết quả Lloyd:</b> J = <span class="num">' + fmt(st.J, 1) + '</span> sau ' + st.it + ' vòng.' :
+        st.C.length === 0 ? 'Bấm <b>Chọn tâm tiếp theo</b>: tâm đầu tiên được chọn ngẫu nhiên đều.' :
+        st.C.length < K ? 'Đã có ' + st.C.length + '/' + K + ' tâm. Vòng tròn quanh mỗi điểm có <b>diện tích tỉ lệ xác suất</b> được chọn làm tâm tiếp theo, D(x)²/ΣD². Các điểm gần tâm đã có gần như không còn cơ hội.' :
+        'Đủ ' + K + ' tâm, bấm <b>Chạy Lloyd</b>.';
+      if (!$('.out').dataset.cmp) $('.out').innerHTML = '<div class="hint">' + msg + '</div>';
+      else $('.out').querySelector('.hint').innerHTML = msg;
+      view.redraw();
+    }
+    $('.pp1').addEventListener('click', function () {
+      if (!st.C.length) st.C.push(P[Math.floor(st.r() * P.length)].x.slice());
+      else st.C.push(P[pick(st.prob, st.r)].x.slice());
+      st.prob = ppProbs(P, st.C); status();
+    });
+    $('.run').addEventListener('click', function () { var res = lloyd(P, st.C); st.C = res.C; st.L = res.L; st.J = res.J; st.it = res.it; status(); });
+    $('.rst').addEventListener('click', function () { st = { C: [], L: null, prob: null, r: S.rng(Date.now() % 100000), J: null }; status(); });
+    $('.nd').addEventListener('click', function () { seed++; delete $('.out').dataset.cmp; reset(); });
+    $('.k').addEventListener('input', function () { $('.kv').textContent = this.value; st = { C: [], L: null, prob: null, r: S.rng(Date.now() % 100000), J: null }; status(); });
+    $('.cmp').addEventListener('click', function () {
+      var K = +$('.k').value, runs = 200, res = { rand: [], far: [], pp: [] };
+      for (var t = 0; t < runs; t++) {
+        res.rand.push(lloyd(P, initRand(P, K, S.rng(1000 + t)).C).J);
+        var fi = initFar(P, K, S.rng(2000 + t)); res.far.push(lloyd(P, fi.C).J); if (fi.idx.some(function (i) { return P[i].t < 0; })) res.farPick = (res.farPick || 0) + 1 / runs;
+        res.pp.push(lloyd(P, initPP(P, K, S.rng(3000 + t)).C).J);
+      }
+      var best = Math.min.apply(null, res.rand.concat(res.far, res.pp));
+      var verdict = function (res, best) {
+        var rate = function (a) { return a.filter(function (v) { return v <= best * 1.01; }).length / a.length; };
+        var r = { rand: rate(res.rand), far: rate(res.far), pp: rate(res.pp) }, names = { rand: 'ngẫu nhiên', far: 'xa nhau nhất', pp: 'k-means++' };
+        var order = Object.keys(r).sort(function (a, b) { return r[b] - r[a]; });
+        var farOut = res.farPick;
+        return 'Tỉ lệ đạt nghiệm tốt nhất cao nhất: <b>' + names[order[0]] + '</b>. ' + (farOut ? 'Cách "xa nhau nhất" chọn trúng điểm ngoại lệ (góc hình) làm tâm khởi đầu ở ' + Math.round(100 * farOut) + '% số lần chạy, nên tỉ lệ tìm được nghiệm tốt nhất thấp hơn.' : '');
+      };
+      var cell = function (name, a) {
+        var m = a.reduce(function (x, y) { return x + y; }, 0) / a.length, worst = Math.max.apply(null, a), ok = a.filter(function (v) { return v <= best * 1.01; }).length;
+        return '<div class="cell"><b>' + name + '</b>J trung bình <span class="num">' + fmt(m, 1) + '</span><br>J tệ nhất <span class="num">' + fmt(worst, 1) + '</span><br>đạt nghiệm tốt nhất: <span class="num">' + Math.round(100 * ok / a.length) + '%</span></div>';
+      };
+      $('.out').dataset.cmp = 1;
+      $('.out').innerHTML = '<div class="hint"></div><div class="grid4">' + cell('Ngẫu nhiên', res.rand) + cell('Xa nhau nhất (slide)', res.far) + cell('k-means++', res.pp) + '</div>' +
+        '<div class="hint">K = ' + K + ', mỗi cách chạy 200 lần với hạt giống khác nhau. Nghiệm tốt nhất tìm được J = ' + fmt(best, 1) + '. ' + verdict(res, best) + '</div>';
+      status();
+    });
+    reset();
+  };
+
+  // =====================================================================
+  // 2) Chọn K: khuỷu tay + silhouette
+  // =====================================================================
+  window.SIMS['km-elbow'] = function (host) {
+    host.innerHTML = '<div class="ctl"><label>Số cụm thật = <input type="range" min="2" max="6" value="4" class="t"><span class="num tv">4</span></label><label>Độ tách cụm <input type="range" min="1" max="10" value="7" class="sep"></label><span class="hint">Bấm vào biểu đồ để chọn K.</span></div><div class="cv"></div><div class="out"></div>';
+    var $ = function (q) { return host.querySelector(q); };
+    var P, res = [], sel = 4;
+    var CEN = [[2, 2], [8, 2.5], [5, 8], [1.5, 7.5], [9, 8], [5, 4.8]];
+    function compute() {
+      var T = +$('.t').value, sd = 0.45 + (10 - +$('.sep').value) * 0.16;
+      P = blobs(21 + T, CEN.slice(0, T), 35, sd);
+      res = [];
+      for (var K = 1; K <= 8; K++) {
+        var best = null;
+        for (var t = 0; t < 6; t++) { var r = lloyd(P, initPP(P, K, S.rng(K * 31 + t)).C); if (!best || r.J < best.J) best = r; }
+        best.s = silhouette(P, best.L, K); res.push(best);
+      }
+      sel = T; draw();
+    }
+    var view = S.canvas($('.cv'), 0.46, function (ctx, w, h) {
+      if (!res.length) return;
+      var half = Math.min(w * 0.42, h * 1.05), pad = 12;
+      // scatter
+      var XR = [-1, 11], YR = [-1.5, 11.5], sx = Math.min((half - 2 * pad) / 12, (h - 2 * pad) / 13), sy = sx, cur = res[sel - 1];
+      P.forEach(function (p, i) { var x = pad + (p.x[0] - XR[0]) * sx, y = h - pad - (p.x[1] - YR[0]) * sy; ctx.beginPath(); ctx.arc(x, y, 3.3, 0, 7); ctx.fillStyle = COL(cur.L[i]); ctx.fill(); });
+      cur.C.forEach(function (c, k) { var x = pad + (c[0] - XR[0]) * sx, y = h - pad - (c[1] - YR[0]) * sy; S.star(ctx, x, y, 10); ctx.fillStyle = COL(k); ctx.fill(); ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1.5; ctx.stroke(); });
+      // chart
+      var x0 = half + 50, x1 = w - 46, y0 = h - 34, y1 = 16, Jmax = res[0].J;
+      var XK = function (K) { return x0 + (K - 1) / 7 * (x1 - x0); }, YJ = function (J) { return y0 - J / Jmax * (y0 - y1); }, YS = function (s) { return y0 - Math.max(0, s) * (y0 - y1); };
+      ctx.strokeStyle = css('--border'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x0, y1); ctx.lineTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      ctx.fillStyle = css('--muted'); ctx.font = '12px system-ui, sans-serif'; ctx.textAlign = 'center';
+      for (var K = 1; K <= 8; K++) ctx.fillText(K, XK(K), y0 + 16);
+      ctx.fillText('K', (x0 + x1) / 2, y0 + 30);
+      // silhouette bars
+      for (K = 2; K <= 8; K++) { var s = res[K - 1].s; ctx.fillStyle = S.alpha(css('--accent'), K === sel ? 0.55 : 0.22); ctx.fillRect(XK(K) - 9, YS(s), 18, y0 - YS(s)); }
+      // J line
+      ctx.strokeStyle = css('--ink'); ctx.lineWidth = 2.2; ctx.beginPath(); res.forEach(function (r, k) { var x = XK(k + 1), y = YJ(r.J); if (!k) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.stroke();
+      res.forEach(function (r, k) { ctx.beginPath(); ctx.arc(XK(k + 1), YJ(r.J), k + 1 === sel ? 6 : 4, 0, 7); ctx.fillStyle = k + 1 === sel ? css('--q') : css('--ink'); ctx.fill(); });
+      ctx.textAlign = 'left'; ctx.fillStyle = css('--ink'); ctx.font = '600 12px system-ui, sans-serif'; ctx.fillText('— J (inertia)', x0 + 6, y1 + 12);
+      ctx.fillStyle = css('--accent'); ctx.fillText('▮ silhouette (0…1)', x0 + 6, y1 + 28);
+      view._hit = function (px) { if (px < x0 - 10) return null; var k = Math.round((px - x0) / (x1 - x0) * 7) + 1; return Math.min(8, Math.max(1, k)); };
+    }, { label: 'Biểu đồ J và silhouette theo K', maxH: 360, minH: 260 });
+    function draw() {
+      var r = res[sel - 1], T = +$('.t').value, bs = 2;
+      for (var K = 3; K <= 8; K++) if (res[K - 1].s > res[bs - 1].s) bs = K;
+      $('.out').innerHTML = '<div><b>K = ' + sel + '</b>: J = <span class="num">' + fmt(r.J, 1) + '</span>' + (sel > 1 ? ', silhouette = <span class="num">' + fmt(r.s, 3) + '</span>' : '') + (sel > 1 ? ', J giảm ' + fmt(100 * (1 - r.J / res[sel - 2].J), 0) + '% so với K = ' + (sel - 1) : '') + '.</div>' +
+        '<div class="hint">Silhouette lớn nhất tại K = ' + bs + (bs === T ? ' (đúng số cụm thật).' : ' (số cụm thật là ' + T + '; khi các cụm chồng lấn, cả hai tiêu chí đều khó chọn).') + ' Khuỷu tay: sau K = ' + T + ' đường J gần như nằm ngang.</div>';
+      view.redraw();
+    }
+    S.pointer(view.cv, { down: function (px) { var k = view._hit && view._hit(px); if (k) { sel = k; draw(); } return false; } });
+    $('.t').addEventListener('input', function () { $('.tv').textContent = this.value; compute(); });
+    $('.sep').addEventListener('input', compute);
+    compute();
+  };
+
+  S.boot();
+})();
+
+</script>
+</body>
+</html>
